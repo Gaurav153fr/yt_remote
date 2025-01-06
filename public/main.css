@@ -28,6 +28,10 @@ body {
 .controller button:active {
   background-color: rgb(73, 72, 72);
 }
+
+.controller button:hover {
+  cursor: pointer;
+}
 .controller button svg {
   color: white;
   height: 100%;
@@ -50,4 +54,19 @@ body {
   width: 100%;
   accent-color: red;
   height: 50px;
+}
+
+#liked[like-status="INDIFFERENT"] svg {
+	stroke: white;
+	fill: black;
+}
+
+#liked[like-status="LIKE"] svg {
+	stroke: black;
+	fill: currentColor;
+}
+
+#liked[like-status="DISLIKE"] svg {
+	stroke: black;
+	fill: red;
 }

@@ -56,6 +56,21 @@
           />
         </svg>
       </button>
+	  <button id="liked" like-status="INDIFFERENT">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="26"
+          height="26"
+          fill="currentColor"
+          class="bi bi-skip-end-fill"
+          viewBox="0 0 26 26"
+		  preserveAspectRatio="none"
+        >
+          <path
+            d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"
+          />
+        </svg>
+      </button>
     </div>
 
     <button id="updateQueue">Update Queue</button>
@@ -83,6 +98,7 @@
       socket.on("song", (data) => {
         console.log("Received song data from server:", data);
         document.getElementById("song").textContent = data.title || "No song";
+		document.getElementById("liked").setAttribute("like-status", data.like);
         document.getElementById("play_pause").innerHTML = data.playing
           ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16">
   <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
@@ -124,6 +140,11 @@
       document.getElementById("play_pause").addEventListener("click", () => {
         console.log("Emitting 'play_pause'");
         socket.emit("play_pause");
+      });
+	  
+	  document.getElementById("liked").addEventListener("click", () => {
+        console.log("Emitting 'liked'");
+        socket.emit("liked");
       });
       socket.on("queue", (data) => {
         console.log("Received queue data from server:", data);

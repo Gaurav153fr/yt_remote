@@ -11,6 +11,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       "yt-formatted-string.byline.style-scope.ytmusic-player-bar.complex-string"
     );
     const playPauseButton = document.querySelector("#play-pause-button");
+	
+	const likeButtons = document.querySelector("#like-button-renderer");
 
     // Make sure the required elements are found
     if (titleElement && imageElement && artistElement && playPauseButton) {
@@ -20,6 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const playPauseButtonLabel = playPauseButton.getAttribute("aria-label");
       const playing = playPauseButtonLabel !== "Play"; // If the label is "Play", it means the song is paused.
       const slider = document.querySelector("#progress-bar");
+	  const like = likeButtons.getAttribute("like-status");
       // Send the response with all song data
       sendResponse({
         title: title,
@@ -27,6 +30,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         image: image,
         playing: playing,
         slider: slider.getAttribute("aria-valuetext"),
+		like: like
       });
     } else {
       // Send a response with a default error message if elements aren't found
@@ -50,6 +54,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "play_pause") {
     const playPauseButton = document.querySelector("#play-pause-button");
     if (playPauseButton) playPauseButton.click();
+  }
+  
+  if (message.action === "liked") {
+    const likeButton = document.querySelector(
+	"yt-button-shape#button-shape-like button"
+	);
+    if (likeButton) likeButton.click();
   }
 
   if (message.action === "prevSong") {

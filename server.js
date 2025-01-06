@@ -48,6 +48,11 @@ io.on("connection", (socket) => {
     console.log("play_pause");
     socket.broadcast.emit("play_pause");
   });
+  
+  socket.on("liked", () => {
+    console.log("liked");
+    socket.broadcast.emit("liked");
+  });
 
   socket.on("slider", (data) => {
     console.log("Received slider data:", data);
