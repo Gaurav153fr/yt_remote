@@ -2,7 +2,7 @@ import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client@4.7.1/+esm";
 
 
 
-const SERVER_ADDRESS = "192.168.30.62"
+const SERVER_ADDRESS = "your_ip_address"
 
 
 
