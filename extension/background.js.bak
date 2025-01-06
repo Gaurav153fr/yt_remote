@@ -101,36 +101,38 @@ socket.on("connect", () => {
     });
   });
 });
+socket.on("liked", () => {
+    chrome.tabs.query({ url: "https://music.youtube.com/*" }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(
+          tabs[0].id,
+          { action: "liked" },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              console.error(
+                "Error sending message:",
+                chrome.runtime.lastError.message
+              );
+            } else if (response) {
+              console.log("Next song response:", response);
+              socket.emit("song", response); // Emit the response to the server
+            } else {
+              console.warn("No response received from content script.");
+            }
+          }
+        );
+      } else {
+        console.error("No active tabs found.");
+      }
+    });
+  });
+});
 socket.on("updateQueue", () => {
   chrome.tabs.query({ url: "https://music.youtube.com/*" }, (tabs) => {
     if (tabs.length > 0) {
       chrome.tabs.sendMessage(
         tabs[0].id,
         { action: "updateQueue" },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "Error sending message:",
-              chrome.runtime.lastError.message
-            );
-          } else if (response) {
-            console.log("Next song response:", response);
-           socket.emit("queue", response);
-          } else {
-            console.warn("No response received from content script.");
-          }}
-      );
-    } else {
-      console.error("No active tabs found.");
-
-  }})}
-);
-socket.on("liked", () => {
-  chrome.tabs.query({ url: "https://music.youtube.com/*" }, (tabs) => {
-    if (tabs.length > 0) {
-      chrome.tabs.sendMessage(
-        tabs[0].id,
-        { action: "liked" },
         (response) => {
           if (chrome.runtime.lastError) {
             console.error(

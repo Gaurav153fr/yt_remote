@@ -62,11 +62,11 @@ body {
 }
 
 #liked[like-status="LIKE"] svg {
-	stroke: black;
+	stroke: none;
 	fill: currentColor;
 }
 
 #liked[like-status="DISLIKE"] svg {
-	stroke: black;
+	stroke: none;
 	fill: red;
 }
