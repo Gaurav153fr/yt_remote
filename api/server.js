@@ -1,6 +1,4 @@
 const express = require("express");
-const serverless = require("serverless-http");
-
 const http = require("http");
 const socketIo = require("socket.io");
 const os = require("os");
@@ -138,25 +136,8 @@ app.get("/room/:roomCode", (req, res) => {
 });
 
 // Get local IP dynamically
-function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const net of interfaces[name]) {
-      if (net.family === "IPv4" && !net.internal) {
-        return net.address;
-      }
-    }
-  }
-  return "127.0.0.1";
-}
 
-const LOCAL_IP = getLocalIP();
-const PORT = 3000;
-const HOST = "localhost";
-
-server.listen(PORT, HOST, () => {
-  console.log(`Server running on http://${HOST}:${PORT}`);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
-
-module.exports = app;
-module.exports.handler = serverless(app);
