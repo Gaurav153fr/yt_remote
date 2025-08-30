@@ -122,8 +122,12 @@ socket.on("message", (msg) => {
 
 // Home page
 app.get("/", (req, res) => {
-  res.render("index", { ipAddress: LOCAL_IP, port: 3000 });
+  res.render("index", { 
+    ipAddress: req.hostname,   // will give "yt-remote.onrender.com"
+    port: process.env.PORT || 3000
+  });
 });
+
 
 // Dynamic room page
 app.get("/room/:roomCode", (req, res) => {
