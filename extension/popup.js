@@ -1,47 +1,51 @@
-document.addEventListener("DOMContentLoaded", () => {
-  // Send a message to the content script to get the currently playing song every 5 seconds
-  setInterval(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(
-        tabs[0].id,
-        { action: "getCurrentlyPlaying" },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            document.getElementById("song").textContent =
-              "YouTube Music not open";
-            document.getElementById("artist").textContent =
-              chrome.runtime.lastError.message;
-          } else {
-            document.getElementById("song").textContent = response.title;
-            document.getElementById("artist").textContent = response.artist;
-          }
-        }
-      );
-    });
-  }, 1000); // 5000 milliseconds = 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+  const sendMessageBtn = document.getElementById("sendMessage");
+  const createRoomBtn = document.getElementById("createRoom");
+  const feedbackDiv = document.getElementById("feedback");
+  const roomStatusSpan = document.getElementById("roomStatus");
 
-  document.getElementById("sendMessage").addEventListener("click", () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "hello" }, (response) => {
-        console.log(response);
-      });
+  // Initial sync when the popup is opened
+  getRoomIdAndDisplay();
+
+  // Button handlers
+  sendMessageBtn.addEventListener("click", getRoomIdAndDisplay);
+
+  createRoomBtn.addEventListener("click", () => {
+    // This button could be used to trigger a room creation if needed
+    // For now, it's just a placeholder to show the logic.
+    // A real implementation would send a message to background.js
+    // to create a new room, and the response would update the UI.
+    chrome.runtime.sendMessage({ type: "createRoom" }, (response) => {
+      console.log("Room creation requested:", response);
+      if (response && response.status === "ok") {
+        feedbackDiv.innerText = "New room created successfully!";
+      } else {
+        feedbackDiv.innerText = "Failed to create a new room.";
+      }
     });
   });
-});
 
-function getCurrentlyPlayingSong() {
-  chrome.tabs.sendMessage(
-    tabs[0].id,
-    { action: "getCurrentlyPlaying" },
-    (response) => {
-      if (chrome.runtime.lastError) {
-        document.getElementById("song").textContent = "YouTube Music not open";
-        document.getElementById("artist").textContent =
-          chrome.runtime.lastError.message;
-      } else {
-        document.getElementById("song").textContent = response.song;
-        document.getElementById("artist").textContent = response.artist;
-      }
+  // Listen for real-time updates from background.js
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "roomUpdate") {
+      updateRoomStatus(message.roomId);
     }
-  );
-}
+  });
+
+  function getRoomIdAndDisplay() {
+    chrome.runtime.sendMessage({ type: "getRoomId" }, (response) => {
+      console.log("Got roomId from background:", response.roomId);
+      updateRoomStatus(response.roomId);
+    });
+  }
+
+  function updateRoomStatus(roomId) {
+    if (roomId) {
+      roomStatusSpan.innerText = `Current room: ${roomId}`;
+      feedbackDiv.innerText = ""; // Clear any previous feedback
+    } else {
+      roomStatusSpan.innerText = `No active room.`;
+      feedbackDiv.innerText = "";
+    }
+  }
+});

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO Rooms</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Socket.IO Room Example</h1>
+
+  <button id="createRoom">Create Room</button>
+  <br><br>
+  <input id="roomCodeInput" placeholder="Enter room code">
+  <button id="joinRoom">Join Room</button>
+
+  <h2 id="status"></h2>
+
+  <script>
+    const socket = io();
+
+    document.getElementById("createRoom").onclick = () => {
+      socket.emit("createRoom");
+    };
+
+    document.getElementById("joinRoom").onclick = () => {
+      const code = document.getElementById("roomCodeInput").value.trim();
+      console.log("Joining room:", code);
+      
+      if (code) {
+socket.emit("joinRoom", code); // string is fine now
+      }
+    };
+
+    socket.on("roomCreated", (data) => {
+      window.location.href = `/room/${data.roomCode}`;
+    });
+
+    socket.on("joinedRoom", (data) => {
+      window.location.href = `/room/${data.roomCode}`;
+    });
+
+    socket.on("errorMessage", (msg) => {
+      alert(msg);
+    });
+  </script>
+</body>
+</html>

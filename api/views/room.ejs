@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Room <%= roomCode %></title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="/main.css" />
+  </head>
+  <body>
+    <h1>Room <%= roomCode %></h1>
+    <p id="info">Connecting...</p>
+
+    <!-- Remote Controller UI -->
+    <div class="img_container">
+      <img src="" alt="song" id="songImg" />
+    </div>
+    <p>
+      <small>Currently Playing:</small>
+      <marquee behavior="scroll" id="song">No song</marquee> <br />
+      <small>By:</small><br />
+      <span id="artist">Unknown</span>
+    </p>
+
+    <div>
+      <input type="range" id="slideBar" min="0" max="1" step="0.01" />
+      <span id="sliderValue">Volume</span>
+    </div>
+
+    <div class="controller">
+      <button id="prevSong">⏮️</button>
+      <button id="play_pause">▶️</button>
+      <button id="nextSong">⏭️</button>
+    </div>
+
+    <button id="updateQueue">Update Queue</button>
+    <div id="queueContainer"></div>
+
+    <hr />
+
+    <!-- Room Chat -->
+    <div>
+      <h3>Send Message to Room</h3>
+      <input id="msgInput" placeholder="Type message" />
+      <button id="sendBtn">Send</button>
+    </div>
+
+    <h3>Room Messages:</h3>
+    <ul id="messages"></ul>
+
+    <script>
+      const socket = io();
+      const roomCode = "<%= roomCode %>";
+console.log("Room code:", roomCode);
+
+      // Auto-join room
+      socket.emit("joinRoom", roomCode);
+
+      // Chat
+      document.getElementById("sendBtn").onclick = () => {
+        const msg = document.getElementById("msgInput").value;
+        if (msg.trim() !== "") {
+          socket.emit("message", { roomCode, msg });
+          document.getElementById("msgInput").value = "";
+        }
+      };
+
+      socket.on("roomUpdate", (data) => {
+        document.getElementById("info").innerText =
+          `${data.message} | Members: ${data.members}`;
+      });
+
+      socket.on("message", (data) => {
+        const li = document.createElement("li");
+        li.innerText = data;
+        document.getElementById("messages").appendChild(li);
+      });
+
+      // --- Remote Controller ---
+      let img = "";
+      const sliderValue = document.getElementById("sliderValue");
+      const slider = document.getElementById("slideBar");
+
+      socket.on("song", (data) => {
+        console.log("Received song data:", data);
+
+        document.getElementById("song").textContent =
+          data.text.title || "No song";
+        document.getElementById("artist").textContent =
+          data.text.artist || "Unknown";
+
+        // Toggle Play/Pause button
+        document.getElementById("play_pause").innerHTML = data.text.playing
+          ? "⏸️"
+          : "▶️";
+
+        sliderValue.innerText = data.text.slider;
+        slider.value = timeToRatio(data.text.slider);
+
+        // Update image only if changed
+        if (data.text.image !== img) {
+          const updatedUrl = data.text.image.replace(
+            /(w)(\d+)-(h)(\d+)/,
+            `$1300-$3300`
+          );
+          document.getElementById("songImg").src = updatedUrl;
+          img = data.text.image;
+        }
+      });
+
+      slider.addEventListener("input", (event) => {
+        const value = event.target.value;
+        socket.emit("slider", { roomCode, value });
+      });
+
+      document.getElementById("nextSong").addEventListener("click", () => {
+        console.log("Next song clicked",roomCode);
+        
+        socket.emit("nextSong", {roomCode});
+      });
+
+      document.getElementById("prevSong").addEventListener("click", () => {
+        socket.emit("prevSong", {roomCode});
+      });
+
+      document.getElementById("play_pause").addEventListener("click", () => {
+        socket.emit("play_pause", {roomCode});
+      });
+
+      document
+        .getElementById("updateQueue")
+        .addEventListener("click", () => {
+          socket.emit("updateQueue", {roomCode});
+        });
+
+      socket.on("queue", (data) => {
+        console.log("Received queue data:", data);
+        const queueContainer = document.getElementById("queueContainer");
+        queueContainer.innerHTML = "";
+        data.queue.forEach((song) => {
+          const songDiv = document.createElement("div");
+          songDiv.classList.add("song");
+          songDiv.innerHTML = `<p>${song.title}</p>`;
+          queueContainer.appendChild(songDiv);
+        });
+      });
+
+      function timeToRatio(timeString) {
+  // Match strings like "1 Minutes 40 Seconds of 5 Minutes 52 Seconds"
+  const match = timeString.match(
+    /(\d+)\s*Minutes\s*(\d+)\s*Seconds\s*of\s*(\d+)\s*Minutes\s*(\d+)\s*Seconds/i
+  );
+
+  if (match) {
+    const currentMinutes = parseInt(match[1], 10);
+    const currentSeconds = parseInt(match[2], 10);
+    const totalMinutes = parseInt(match[3], 10);
+    const totalSeconds = parseInt(match[4], 10);
+
+    const currentTime = currentMinutes * 60 + currentSeconds;
+    const totalTime = totalMinutes * 60 + totalSeconds;
+
+    return (currentTime / totalTime).toFixed(4);
+  }
+
+  return null; // fallback if format doesn't match
+}
+
+    </script>
+  </body>
+</html>

@@ -1,16 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>YouTube Music Now Playing</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Music Sync</title>
+    <!-- Use Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for a dark, cohesive look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #E0E0E0;
+            width: 320px; /* Standard popup width */
+            padding: 0;
+            margin: 0;
+        }
+        .container {
+            padding: 1rem;
+        }
+        .btn {
+            @apply flex items-center justify-center px-4 py-2 font-medium rounded-full transition-colors duration-200;
+        }
+        .btn-primary {
+            @apply bg-indigo-600 hover:bg-indigo-700 text-white shadow-md;
+        }
+        .btn-secondary {
+            @apply bg-gray-700 hover:bg-gray-600 text-gray-200;
+        }
+    </style>
 </head>
 <body>
-    <div id="app">
-        <h1>Now Playing</h1>
-        <p><strong>Song:</strong> <span id="song">Loading...</span></p>
-        <p><strong>Artist:</strong> <span id="artist">Loading...</span></p>
-        <button id="sendMessage">Send hello</button>
+    <div class="container flex flex-col space-y-4">
+        <!-- Main Header -->
+        <h1 class="text-xl font-bold text-center text-white">YouTube Music Sync</h1>
+
+        <!-- Now Playing Section -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+            <h2 class="text-base font-semibold text-white mb-2">Now Playing</h2>
+            <div class="flex items-center space-x-3">
+                <!-- Song and Artist Info -->
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-300">Song</p>
+                    <span id="song" class="text-lg font-semibold text-white truncate">Loading...</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-300">Artist</p>
+                    <span id="artist" class="text-lg font-semibold text-white truncate">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Status Section -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+            <h2 class="text-base font-semibold text-white mb-2">Room Status</h2>
+            <p id="roomStatus" class="text-sm text-gray-300">No active room.</p>
+            <p id="connections" class="text-sm text-gray-300 mt-1">Connections: 0</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-between space-x-2">
+            <button id="createRoom" class="btn btn-primary w-full">
+                Create Room
+            </button>
+            <button id="sendMessage" class="btn btn-secondary w-full">
+                Send Hello
+            </button>
+        </div>
+
+        <!-- Feedback Messages -->
+        <p id="feedback" class="text-sm text-center text-gray-400 mt-2"></p>
     </div>
+    
+    <!-- JS placed at end so elements exist -->
     <script src="popup.js"></script>
 </body>
 </html>
