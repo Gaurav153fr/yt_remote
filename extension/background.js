@@ -78,6 +78,8 @@ function startPolling() {
         lastSong = res;
     
         broadcastToAllTabs({ type: "songUpdate", data: res });
+        console.log("Broadcasting song update:", res);  
+        
         if (roomCode) {
         
           socket.emit("song", { roomCode, text:res });
@@ -124,6 +126,67 @@ console.log("lyrics",lyrics);
         broadcastToAllTabs({ type: "position", data: msg.data });
         sendResponse({ ok: true });
       }
+      if(msg.type ==="quickPicks"){
+
+                const picks = await sendToYtMusic({ action: "quickPicks" });
+        
+         console.log("picks",picks);
+        
+               
+        
+                sendResponse({ ok: true, data: picks.quickSongs });
+        
+              }
+      if (msg.type === "playQuick") {
+        chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id },
+          world: "MAIN",
+          func: (href) => {
+            return new Promise((resolve, reject) => {
+              const selector = `a[href='${href}']`;
+              console.log("Looking for selector:", selector);
+              
+              const observer = new MutationObserver((mutations, obs) => {
+                const song = document.querySelector(selector);
+                if (song) {
+                  console.log("Found and clicking song:", song);
+                  song.click();
+                  obs.disconnect(); // Stop observing once the element is found and clicked
+                  resolve({ status: "success", message: "Song clicked successfully." });
+                }
+              });
+      
+              // Start observing the body for changes
+              observer.observe(document.body, { childList: true, subtree: true });
+      
+              // Check if the element already exists on initial run
+              const song = document.querySelector(selector);
+              if (song) {
+                console.log("Song found on initial check, clicking:", song);
+                song.click();
+                observer.disconnect();
+                resolve({ status: "success", message: "Song clicked on initial check." });
+              }
+              
+              // Timeout to prevent endless waiting
+              setTimeout(() => {
+                observer.disconnect();
+                reject({ status: "failed", error: "Song element not found within timeout." });
+              }, 5000); // 5-second timeout
+            });
+          },
+          args: [msg.data]
+        }).then(results => {
+          sendResponse(
+            {ok: true, ...results[0].result }
+          );
+        }).catch(err => {
+          console.error("Script execution error:", err);
+          sendResponse({ok: false, status: "failed", error: String(err) });
+        });
+      
+        return true; // Keeps the sendResponse channel open
+      }
 if (msg.type === "widget:sync") {
         sendResponse({ ok: true, data: lastSong });
       }
@@ -135,6 +198,14 @@ if (msg.type === "widget:sync") {
 
       if (msg.type === "getRoomId") {
         sendResponse({ roomId: roomCode });
+      }
+
+
+      if (msg.type === "saveSettings") {
+        // Here you would save the settings, e.g., to chrome.storage
+        console.log("Saving settings:", msg.data);
+        await chrome.storage.sync.set({ settings: msg.data });
+        sendResponse({ status: "ok" });
       }
     } catch (e) {
       sendResponse({ ok: false, error: String(e) });
@@ -152,13 +223,11 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (ytMusicTabId === tabId) ytMusicTabId = null;
 });
-
-// --- Socket.IO ---
-const SERVER_ADDRESS = "localhost"; // Or LAN IP
+const SERVER_ADDRESS = "yt-remote.onrender.com";
 
 console.log("Connecting to server:", SERVER_ADDRESS);
 
-const socket = io(`ws://${SERVER_ADDRESS}:3000`, {
+const socket = io(`wss://${SERVER_ADDRESS}`, {
   transports: ["websocket"],
   autoConnect: true,
   forceNew: true,

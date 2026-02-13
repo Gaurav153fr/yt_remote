@@ -1,269 +1,268 @@
-// Prevent multiple widgets per tab
 if (!window.__ytm_widget_initialized__) {
   window.__ytm_widget_initialized__ = true;
 
-  // --- Styles ---
+  const host = document.createElement("div");
+  host.id = "ytm-widget-root";
+  document.body.appendChild(host);
+  const shadow = host.attachShadow({ mode: "open" });
+
   const style = document.createElement("style");
   style.textContent = `
-  .ytm-widget {
-    position: fixed; inset: auto 12px 12px auto;
-    z-index: 999999;
-    width: 280px; height: 64px;
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    background: rgba(20,20,20,0.9);
-    color: #fff;
-    backdrop-filter: blur(8px);
-    border-radius: 999px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.25);
-    user-select: none;
-    cursor: grab;
-    overflow: hidden;
-    transition: transform 0.2s ease, right 0.2s ease, left 0.2s ease, top 0.2s ease, bottom 0.2s ease, opacity 0.2s ease;
+  :host { 
+    position: fixed; z-index: 99999999; 
+    width: 155px; height: 50px;
+    --fg: #ffffff; --bg-mini: #ff0000; --bg-expanded: #121212;
+   /* Position it 20px from the right and 20px from the bottom */
+left: calc(100vw - 175px); 
+top: calc(100vh - 70px);
+    transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
   }
-  .ytm-widget:active { cursor: grabbing; }
-  .ytm-cover {
-    width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex: none;
-    background: #333;
-  }
-  .ytm-cover img { width: 100%; height: 100%; object-fit: cover; display:block;cursor:pointer; }
-  .ytm-meta { flex: 1; min-width: 0; }
-  .ytm-title { font-size: 13px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ytm-artist { font-size: 11px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ytm-controls { display: flex; gap: 8px; align-items: center; }
-  .ytm-btn {
-    width: 28px; height: 28px; border-radius: 999px; background: rgba(255,255,255,0.1);
-    display: grid; place-items: center; border: none; color: white; cursor: pointer;
-  }
-  .ytm-btn:hover { background: rgba(255,255,255,0.18); }
-  .right-container { display: flex;flex-direction: column; }
-  #lyrics { display: none; width: 100%; height: 200px; background: transparent; }
-  #lyricsCanvas { width: 100%; height: 100%; }
-  `;
-  document.documentElement.appendChild(style);
+  :host(.is-expanded) { width: 310px; height: 170px; }
 
-  // --- UI ---
+  .widget {
+    all: initial; display: flex; align-items: center; padding: 6px;
+    background: var(--bg-mini); color: var(--fg); border-radius: 999px;
+    box-shadow: 0 12px 45px rgba(0,0,0,0.4); backdrop-filter: blur(20px);
+    font-family: system-ui, sans-serif; width: 100%; height: 100%; 
+    box-sizing: border-box; overflow: hidden; cursor: pointer; position: relative;
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: background 0.6s ease;
+  }
+  .widget.expanded { border-radius: 32px; cursor: default; background: var(--bg-expanded); }
+
+  .bg-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.8s ease; z-index: 0; pointer-events: none; }
+  .expanded .bg-art { opacity: 0.5; }
+  
+  .mini-content { display: flex; align-items: center; z-index: 5; width: 100%; gap: 12px; padding-left: 4px; pointer-events: none; }
+  .expanded .mini-content { display: none; }
+  
+  .mini-art { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--fg); overflow: hidden; flex-shrink: 0; }
+  .mini-art img { width: 100%; height: 100%; object-fit: cover; }
+  
+  .bar-container { display: flex; align-items: center; justify-content: center; width: 50px; height: 25px; cursor: pointer; pointer-events: auto; position: relative; }
+  .bars-inner { display: flex; align-items: center; gap: 3px; transition: opacity 0.2s; }
+  .action-icon { position: absolute; font-size: 18px; opacity: 0; transform: scale(0.5); transition: 0.2s; font-weight: bold; }
+  .flashing .bars-inner { opacity: 0; }
+  .flashing .action-icon { opacity: 1; transform: scale(1.1); }
+
+  .bar { width: 3px; background: var(--fg); border-radius: 2px; }
+  .playing .bar { animation: bar-dance 0.8s infinite ease-in-out; }
+  .bar:nth-child(1), .bar:nth-child(5) { height: 6px; }
+  .bar:nth-child(2), .bar:nth-child(4) { height: 12px; animation-delay: 0.15s; }
+  .bar:nth-child(3) { height: 18px; animation-delay: 0.3s; }
+
+  @keyframes bar-dance { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.6); } }
+
+  .expanded-ui { display: none; flex-direction: column; width: 100%; z-index: 5; padding: 18px; box-sizing: border-box; }
+  .expanded .expanded-ui { display: flex; }
+  .title { font-size: 17px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+  .artist { font-size: 13px; opacity: 0.8; color: var(--fg); margin-bottom: 5px; }
+  
+  .seekbar-row { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 5px; }
+  .seekbar-wrap { flex-grow: 1; height: 35px; cursor: pointer; position: relative; }
+  #waveCanvas { width: 100%; height: 100%; pointer-events: none; }
+  .time-display { font-size: 11px; font-variant-numeric: tabular-nums; opacity: 0.9; min-width: 70px; text-align: right; color: var(--fg); font-weight: 600; }
+
+  .controls { display: flex; justify-content: center; gap: 20px; align-items: center; margin-top: 10px; }
+  .btn { background: rgba(255,255,255,0.1); border: none; color: var(--fg); cursor: pointer; font-size: 22px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+  .btn:active { transform: scale(0.9); }
+  .btn#play { background: var(--fg); color: var(--bg-expanded); }
+  .drag-handle { margin-left: auto; cursor: grab; opacity: 0.6; padding: 10px; font-size: 20px; z-index: 10; color: var(--fg); pointer-events: auto; }
+  `;
+  shadow.appendChild(style);
+
   const wrap = document.createElement("div");
-  wrap.className = "ytm-widget";
+  wrap.className = "widget";
   wrap.innerHTML = `
-    <div class="ytm-cover"><img id="ytmWImg" alt="" /></div>
-    <div class="right-container" id="right-container">
-      <div class="ytm-meta">
-        <div class="ytm-title" id="ytmWTitle">Not playing</div>
-        <div class="ytm-artist" id="ytmWArtist">—</div>
+  <img id="bg-art" class="bg-art" />
+  <div class="mini-content">
+      <div class="mini-art"><img id="img-mini" /></div>
+      <div class="bar-container" id="barBox">
+          <div class="action-icon" id="flashIcon">▶</div>
+          <div class="bars-inner">
+              <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
       </div>
-      <div class="ytm-controls">
-        <button class="ytm-btn" id="ytmPrev" title="Previous">⏮︎</button>
-        <button class="ytm-btn" id="ytmPlay" title="Play/Pause">▶︎</button>
-        <button class="ytm-btn" id="ytmNext" title="Next">⏭︎</button>
-      </div>
-     
+      <div class="drag-handle" id="handle">⠿</div>
+  </div>
+  <div class="expanded-ui">
+    <div class="title" id="title">...</div>
+    <div class="artist" id="artist">...</div>
+    <div class="seekbar-row">
+        <div class="seekbar-wrap" id="seekbar"><canvas id="waveCanvas"></canvas></div>
+        <div class="time-display" id="timeText">0:00 / 0:00</div>
     </div>
-   
-    <div id="lyrics"><canvas id="lyricsCanvas" width="280" height="200"></canvas></div>
+    <div class="controls">
+      <button class="btn" id="prev">⏮</button>
+      <button class="btn" id="play">▶</button>
+      <button class="btn" id="next">⏭</button>
+    </div>
+  </div>
   `;
-  document.body.appendChild(wrap);
+  shadow.appendChild(wrap);
 
-  const els = {
-    img: wrap.querySelector("#ytmWImg"),
-    title: wrap.querySelector("#ytmWTitle"),
-    artist: wrap.querySelector("#ytmWArtist"),
-    prev: wrap.querySelector("#ytmPrev"),
-    play: wrap.querySelector("#ytmPlay"),
-    next: wrap.querySelector("#ytmNext"),
+  let isDragging = false, hasMoved = false, startX, startY;
+  let miniHome = { 
+    left: window.innerWidth - 175, 
+    top: window.innerHeight - 70 
+  };
+  const clampPos = (l, t, isExp) => {
+      const w = isExp ? 310 : 155, h = isExp ? 170 : 50, pad = 10;
+      return {
+          l: Math.max(pad, Math.min(l, window.innerWidth - w - pad)),
+          t: Math.max(pad, Math.min(t, window.innerHeight - h - pad))
+      };
   };
 
-  // --- Drag + snap ---
-  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
-  const STORAGE_KEY = "ytm_widget_pos";
+  const hdl = wrap.querySelector("#handle");
+  hdl.onpointerdown = (e) => {
+      isDragging = true; hasMoved = false;
+      startX = e.clientX; startY = e.clientY;
+      const r = host.getBoundingClientRect();
+      miniHome.left = r.left; miniHome.top = r.top;
+      host.style.transition = "none";
+      hdl.setPointerCapture(e.pointerId);
+  };
 
-  function loadPos() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } }
-  function savePos(pos) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(pos));
-      chrome.runtime.sendMessage({ type: "widget:position", data: pos });
-    } catch {}
-  }
-  function applyPos(pos) {
-    wrap.style.left = pos.left + "px";
-    wrap.style.top = pos.top + "px";
-    wrap.style.right = "auto"; wrap.style.bottom = "auto";
-  }
-  const saved = loadPos(); if (saved) applyPos(saved);
-
-  function snapToEdge() {
-    const pad = 12, rect = wrap.getBoundingClientRect(), vw = innerWidth, vh = innerHeight;
-    let x = Math.max(pad, Math.min(vw - rect.width - pad, rect.left));
-    let y = Math.max(pad, Math.min(vh - rect.height - pad, rect.top));
-    wrap.style.left = x + "px"; wrap.style.top = y + "px";
-    savePos({ left: x, top: y });
-  }
-
-  wrap.addEventListener("pointerdown", e => {
-    if (e.target.closest(".ytm-controls")) return;
-    dragging = true; startX = e.clientX; startY = e.clientY;
-    const r = wrap.getBoundingClientRect(); startLeft = r.left; startTop = r.top;
-    e.preventDefault();
-  });
-  window.addEventListener("pointermove", e => {
-    if (!dragging) return;
-    wrap.style.left = startLeft + (e.clientX - startX) + "px";
-    wrap.style.top = startTop + (e.clientY - startY) + "px";
-  });
-  window.addEventListener("pointerup", () => { if (dragging) { dragging = false; snapToEdge(); } });
-  window.addEventListener("resize", snapToEdge);
-
-  // --- Player control messaging ---
-  function control(action) {
-    chrome.runtime.sendMessage({ type: "widget:control", action });
-  }
-  els.prev.addEventListener("click", () => control("prevSong"));
-  els.play.addEventListener("click", () => control("play_pause"));
-  els.next.addEventListener("click", () => control("nextSong"));
-
-  // --- Lyrics canvas animation ---
-  const canvas = document.getElementById("lyricsCanvas");
-  const ctx = canvas.getContext("2d");
-  let currentPlay = 0; // seconds from YouTube
-let lyrics = [];
-let currentLine = 0;
-let scrollY = 0;
-
-function startLyrics(raw) {
-  // parse [mm:ss.xx] lyric format → [{time,text}]
-  lyrics = raw.split("\n").map(line => {
-    const m = line.match(/\[(\d+):(\d+).(\d+)\](.*)/);
-    if (!m) return null;
-    return {
-      time: parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100,
-      text: m[4].trim()
-    };
-  }).filter(Boolean);
-
-  currentLine = 0;
-  scrollY = 0; // smooth scroll offset
-  requestAnimationFrame(drawLyrics);
-}
-
-function drawLyrics() {
-  const now = parseTimeString(currentPlay)+1  ; // <-- use YouTube's current playback time
-
-  // find current line index
-  for (let i = 0; i < lyrics.length; i++) {
-   
-    if (lyrics[i].time <= now && (i === lyrics.length - 1 || lyrics[i + 1].time > now)) {
-      currentLine = i;
-      break;
-    }
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const cx = canvas.width / 2, cy = canvas.height / 2;
-  ctx.textAlign = "center";
-  ctx.font = "18px sans-serif";
-
-  // --- Smooth scroll effect ---
-  const targetY = currentLine * 40; // 40px per line
-  scrollY += (targetY - scrollY) * 0.08; // easing for smoothness
-
-  // Draw all lines with fade + highlight current
-  lyrics.forEach((line, i) => {
-    const y = cy + (i * 40 - scrollY);
-    const dist = Math.abs(i - currentLine);
-    let alpha = Math.max(0, 1 - dist * 0.6); // fade other lines
-    if (dist === 0) alpha = 1; // highlight current line
-    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-
-    if (dist === 0) {
-      ctx.font = "bold 16px sans-serif"; // current line bigger/bold
-    } else {
-      ctx.font = "14px sans-serif";
-    }
-
-    const maxWidth = canvas.width * 0.85; // 85% of canvas width
-    const lineHeight = 24;
-    wrapText(ctx, line.text, cx, y, maxWidth, lineHeight);
-    
+  window.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+      const coords = clampPos(miniHome.left + dx, miniHome.top + dy, wrap.classList.contains('expanded'));
+      host.style.left = coords.l + "px"; host.style.top = coords.t + "px";
   });
 
-  requestAnimationFrame(drawLyrics);
-}
-
-  // --- Toggle UI / Lyrics ---
-  let isLyricsOpen = false;
-  els.img.addEventListener("click", () => {
-    const lyricsDiv = wrap.querySelector("#lyrics");
-    const rightDiv = wrap.querySelector("#right-container");
-    // const favDiv = wrap.querySelector(".fav-songs");
-    if (!isLyricsOpen) {
-
-       lyricsDiv.style.display="block"; rightDiv.style.display="none"; 
-      //  favDiv.style.display="none";
-      chrome.runtime.sendMessage({ type: "widget:lyrics", data: true });
-      startLyrics(currentLyricsRaw || `[00:00.00] No lyrics found`);
-      isLyricsOpen = true;
-    } else {
-      lyricsDiv.style.display="none"; rightDiv.style.display="block";
-      // favDiv.style.display="flex";
-      isLyricsOpen = false;
-    }
+  window.addEventListener("pointerup", () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const r = host.getBoundingClientRect();
+      miniHome = { left: r.left, top: r.top };
+      host.style.transition = "all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)";
+      setTimeout(() => { hasMoved = false; }, 50);
   });
 
-  // --- Update song + lyrics from background ---
-  let currentLyricsRaw = "";
-  function updateSong(d) {
-    if (!d) return;
-    els.title.textContent = d.title || "Unknown";
-    els.artist.textContent = d.artist || "Unknown";
-    if (d.image) els.img.src = d.image;
-    els.play.innerHTML = d.playing ? "⏸︎" : "▶︎";
-    if (d.lyrics) currentLyricsRaw = d.lyrics;
-    if(d.slider) currentPlay = d.slider;
-    console.log("currentPlay",currentPlay);
-    
-  }
+  wrap.onclick = (e) => {
+      if (hasMoved || e.target.closest(".btn") || e.target.closest("#seekbar") || e.target.closest("#handle") || e.target.closest("#barBox")) return;
+      const isExp = wrap.classList.toggle("expanded");
+      host.classList.toggle("is-expanded", isExp);
+      if (isExp) {
+          const coords = clampPos(miniHome.left, miniHome.top, true);
+          host.style.left = coords.l + "px"; host.style.top = coords.t + "px";
+          requestAnimationFrame(drawWave);
+      } else {
+          host.style.left = miniHome.left + "px"; host.style.top = miniHome.top + "px";
+      }
+  };
 
-  chrome.runtime.onMessage.addListener(msg => {
-    if (msg.type === "songUpdate") updateSong(msg.data);
-    if (msg.type === "position") applyPos(msg.data);
-    if (msg.type === "lyrics") {currentLyricsRaw = msg.data;console.log("lyrics",msg.data);startLyrics(msg.data);
+  const updateTheme = (src) => {
+      let hd = src.includes('googleusercontent.com') ? src.split('=')[0] + '=s800-c' : src;
+      const img = new Image(); img.crossOrigin = "Anonymous"; img.src = hd;
+      img.onload = () => {
+          const c = document.createElement("canvas"); const x = c.getContext("2d");
+          c.width = 40; c.height = 40; x.drawImage(img, 0, 0, 40, 40);
+          const data = x.getImageData(0, 0, 40, 40).data;
+          let counts = {}, max = 0, dom = {r:255, g:0, b:0}, bright = {v:-1}, dark = {v:766};
+          for (let i = 0; i < data.length; i += 4) {
+              const r = data[i], g = data[i+1], b = data[i+2], v = r+g+b;
+              if (v > bright.v) bright = {v, r, g, b};
+              if (v < dark.v) dark = {v, r, g, b};
+              const k = `${Math.floor(r/10)},${Math.floor(g/10)},${Math.floor(b/10)}`;
+              counts[k] = (counts[k] || 0) + 1;
+              if (counts[k] > max) { max = counts[k]; dom = {r, g, b}; }
+          }
+          if ((dom.r + dom.g + dom.b) < 150) { dom.r += 65; dom.g += 65; dom.b += 65; }
+          if ((dom.r + dom.g + dom.b) > 650) { dom.r *= 0.8; dom.g *= 0.8; dom.b *= 0.8; }
+          host.style.setProperty('--bg-mini', `rgb(${dom.r}, ${dom.g}, ${dom.b})`);
+          host.style.setProperty('--bg-expanded', `rgb(${Math.floor(dark.r*0.25)}, ${Math.floor(dark.g*0.25)}, ${Math.floor(dark.b*0.25)})`);
+          if (bright.v < 400) bright = {r:255, g:255, b:255};
+          host.style.setProperty('--fg', `rgb(${bright.r}, ${bright.g}, ${bright.b})`);
+          wrap.querySelector("#bg-art").src = hd; wrap.querySelector("#img-mini").src = hd;
+      };
+  };
+
+  const barBox = wrap.querySelector("#barBox");
+  const flashIcon = wrap.querySelector("#flashIcon");
+  barBox.onclick = (e) => {
+      e.stopPropagation();
+      flashIcon.textContent = isPlaying ? "⏸" : "▶";
+      barBox.classList.add("flashing");
+      chrome.runtime.sendMessage({ type: "widget:control", action: "play_pause" });
+      setTimeout(() => barBox.classList.remove("flashing"), 600);
+  };
+
+  const cvs = wrap.querySelector('#waveCanvas'); const ctx = cvs.getContext('2d');
+  let phase = 0, currentProgress = 0, isPlaying = false;
+
+  const drawWave = () => {
+      if (!wrap.classList.contains('expanded')) return;
+      const w = cvs.offsetWidth, h = cvs.offsetHeight;
+      if (cvs.width !== w) { cvs.width = w; cvs.height = h; }
+      ctx.clearRect(0, 0, w, h);
+      const midY = h / 2, progX = w * currentProgress, fg = getComputedStyle(host).getPropertyValue('--fg');
+      ctx.beginPath(); ctx.strokeStyle = fg; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      for (let x = 0; x <= progX; x++) {
+          const env = Math.sin((x / progX) * Math.PI); 
+          // WAVE MATH: 0.25 is wavelength, 14 is amplitude
+          const y = midY + Math.sin(x * 0.25 - phase) * (isPlaying ? 7 : 1) * env;
+          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.beginPath(); ctx.fillStyle = fg; ctx.arc(progX, midY, 6, 0, 7); ctx.fill();
+      phase += isPlaying ? 0.12 : 0.02;
+      requestAnimationFrame(drawWave);
+  };
+
+  const parseTime = (s) => {
+      const parts = s.toLowerCase().split(' ');
+      let min = 0, sec = 0;
+      for (let i=0; i<parts.length; i++) {
+          if (parts[i].startsWith('min')) min = parseInt(parts[i-1]) || 0;
+          if (parts[i].startsWith('sec')) sec = parseInt(parts[i-1]) || 0;
+      }
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const updateUI = (d) => {
+      if (!d) return;
+      isPlaying = d.playing;
+      wrap.querySelector("#title").textContent = d.title.split(' - ')[1] || d.title;
+      wrap.querySelector("#artist").textContent = d.artist.split(' • ')[0];
+      wrap.querySelector("#play").innerHTML = d.playing ? "⏸" : "▶";
+      wrap.querySelector("#barBox").classList.toggle("playing", d.playing);
+      if (d.image) updateTheme(d.image);
+      if (d.slider) {
+          const pts = d.slider.split(' of ');
+          if (pts.length === 2) {
+              wrap.querySelector("#timeText").textContent = `${parseTime(pts[0])} / ${parseTime(pts[1])}`;
+              const toSec = (s) => {
+                  const p = s.toLowerCase().split(' ');
+                  let total = 0;
+                  for (let i=0; i<p.length; i++) {
+                      if (p[i].startsWith('min')) total += (parseInt(p[i-1]) || 0) * 60;
+                      if (p[i].startsWith('sec')) total += (parseInt(p[i-1]) || 0);
+                  }
+                  return total;
+              };
+              const cur = toSec(pts[0]), dur = toSec(pts[1]);
+              if (dur > 0) currentProgress = cur / dur;
+          }
+      }
+  };
   
-    };
-  });
-
-  chrome.runtime.sendMessage({ type: "widget:requestSync" }, res => {
-    if (res?.ok && res.data) updateSong(res.data);
-  });
-}
-
-
-
-function parseTimeString(str) {
-  const m = str.match(/(\d+)\s*Minutes?\s*(\d+)\s*Seconds?/i);
-  if (!m) return 0;
-  return parseInt(m[1]) * 60 + parseInt(m[2]);
-}
-
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = text.split(" ");
-  let line = "";
-  const lines = [];
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + " ";
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && i > 0) {
-      lines.push(line);
-      line = words[i] + " ";
-    } else {
-      line = testLine;
-    }
-  }
-  lines.push(line);
-
-  for (let j = 0; j < lines.length; j++) {
-    ctx.fillText(lines[j], x, y + j * lineHeight);
-  }
-
-  return lines.length * lineHeight; // return how tall it was
+  wrap.querySelector("#play").onclick = (e) => { e.stopPropagation(); chrome.runtime.sendMessage({ type: "widget:control", action: "play_pause" }); };
+  wrap.querySelector("#prev").onclick = (e) => { e.stopPropagation(); chrome.runtime.sendMessage({ type: "widget:control", action: "prevSong" }); };
+  wrap.querySelector("#next").onclick = (e) => { e.stopPropagation(); chrome.runtime.sendMessage({ type: "widget:control", action: "nextSong" }); };
+  wrap.querySelector("#seekbar").onpointerdown = (e) => {
+      const r = wrap.querySelector("#seekbar").getBoundingClientRect();
+      const s = (ev) => { currentProgress = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)); };
+      s(e); window.onpointermove = s;
+      window.onpointerup = () => { window.onpointermove = null; chrome.runtime.sendMessage({ type: "widget:control", action: "seek", value: currentProgress }); };
+      e.stopPropagation();
+  };
+  chrome.runtime.onMessage.addListener(msg => { if (msg.type === "songUpdate") updateUI(msg.data); });
 }

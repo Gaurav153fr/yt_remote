@@ -3,33 +3,27 @@ document.addEventListener('DOMContentLoaded', function() {
   const createRoomBtn = document.getElementById("createRoom");
   const feedbackDiv = document.getElementById("feedback");
   const roomStatusSpan = document.getElementById("roomStatus");
+const quickPicksBtn = document.getElementById("quickPicks");
+const toggleWidgetButton = document.getElementById("toggleWidget");
 
+const toggleWidget = () => {
+  const curr = toggleWidgetButton.getAttribute("data-state");
+
+  SendToBackground({type:"toggleWidget",data:!curr});
+}
   // Initial sync when the popup is opened
   getRoomIdAndDisplay();
-
+quickPicksBtn.addEventListener("click", quickPicks);
   // Button handlers
   sendMessageBtn.addEventListener("click", getRoomIdAndDisplay);
 
-  createRoomBtn.addEventListener("click", () => {
-    // This button could be used to trigger a room creation if needed
-    // For now, it's just a placeholder to show the logic.
-    // A real implementation would send a message to background.js
-    // to create a new room, and the response would update the UI.
-    chrome.runtime.sendMessage({ type: "createRoom" }, (response) => {
-      console.log("Room creation requested:", response);
-      if (response && response.status === "ok") {
-        feedbackDiv.innerText = "New room created successfully!";
-      } else {
-        feedbackDiv.innerText = "Failed to create a new room.";
-      }
-    });
-  });
 
   // Listen for real-time updates from background.js
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === "roomUpdate") {
       updateRoomStatus(message.roomId);
     }
+   
   });
 
   function getRoomIdAndDisplay() {
@@ -48,4 +42,49 @@ document.addEventListener('DOMContentLoaded', function() {
       feedbackDiv.innerText = "";
     }
   }
+
+  function quickPicks() {
+    chrome.runtime.sendMessage({ type: "quickPicks" }, (response) => {
+      console.log("got that response",response);
+      
+      const pDiv= document.getElementById("quickPicksContainer");
+      response.data.forEach((song) => {
+        const songDiv = document.createElement("div");
+
+        songDiv.innerHTML = song.title + " - " + song.artist;
+        songDiv.style.cursor = "pointer";
+        songDiv.style.marginBottom = "8px";
+        songDiv.style.backgroundColor = "#f0f0f0";
+        songDiv.style.padding = "5px";
+        songDiv.addEventListener("click", () => {
+          chrome.runtime.sendMessage({ type: "playQuick", action: "playSong", data: song.href }, (response) => {
+            if (response.ok) {
+              feedbackDiv.innerText = `Playing: ${song.title} by ${song.artist}`;
+            } else {
+              feedbackDiv.innerText = `Error: ${response.error}`;
+            }
+          });
+        })
+        pDiv.appendChild(songDiv);
+      });
+    });
+  }
+
 });
+
+
+
+
+function SendToBackground({type,data}) {
+  chrome.runtime.sendMessage({type:type,data:data},(res)=>{
+    return res
+  })
+}
+
+
+
+document.getElementById("saveSettings").addEventListener("click",()=>{
+  const miniPlayerEnabled = document.getElementById("toggleMini")
+  const data={miniPlayerEnabled:miniPlayerEnabled.checked};
+ chrome.storage.local.set({settings:data},()=>{console.log("Settings saved",data); SendToBackground({type:"saveSettings",data:data}); })
+})

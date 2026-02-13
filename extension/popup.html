@@ -51,7 +51,10 @@
                 </div>
             </div>
         </div>
-
+<div>
+    Toogle widgeet 
+    <button id="toggleWidget" class="btn btn-secondary w-full mt-2" data-state="false">On</button>
+</div>
         <!-- Room Status Section -->
         <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
             <h2 class="text-base font-semibold text-white mb-2">Room Status</h2>
@@ -71,8 +74,16 @@
 
         <!-- Feedback Messages -->
         <p id="feedback" class="text-sm text-center text-gray-400 mt-2"></p>
+        <button id="quickPicks" class="btn btn-secondary w-full mt-2">Quick Picks</button>
+        <div id="quickPicksContainer" class="mt-2 space-y-2 max-h-40 overflow-y-auto"></div>
     </div>
     
+    <div>
+        <h3>Settings</h3>
+        <span><label for="toggleMini">Enable mini player</label><input type="checkbox" id="toggleMini"></span>
+
+        <button id="saveSettings">Save</button>
+    </div>
     <!-- JS placed at end so elements exist -->
     <script src="popup.js"></script>
 </body>

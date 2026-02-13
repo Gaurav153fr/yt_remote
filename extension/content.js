@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           "yt-formatted-string.byline.style-scope.ytmusic-player-bar.complex-string"
         );
         const playPauseButton = document.querySelector("#play-pause-button");
-    
+  
         // Make sure the required elements are found
         if (titleElement && imageElement && artistElement && playPauseButton) {
           const title = titleElement.textContent.trim() || "Unknown Title";
@@ -119,7 +119,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // return true;
       break;
     }
-
+    case "playQuick": {
+      const song = document.querySelector(`a[href='${message.data}']`);
+      console.log("song", song);
+      injectPlay(message.data);
+      function injectPlay(href) {
+        const s = document.createElement("script");
+        s.textContent = `
+          (function() {
+            const el = document.querySelector("a[href='${href}']");
+            if (el) {
+              el.click(); // now it's in page context, handled normally
+            }
+          })();
+        `;
+        document.documentElement.appendChild(s);
+        s.remove();
+      }
+      
+      if (song) {
+        const evt = new PointerEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          view: window
+        });
+        console.log("evt", evt);
+        
+        song.dispatchEvent(evt);
+        sendResponse({ status: "success", action: "playQuick" });
+      } else {
+        sendResponse({ status: "failed", action: "playQuick", error: "Song not found" });
+      }
+      break;
+    }
+    
     case "updateQueue": {
       const queueList = document.querySelector("ytmusic-player-queue");
       if (queueList) {
@@ -142,7 +176,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       break;
     }
-
+case "toggleWidget":{ 
+ console.log("toggleWidget",message.data);
+ 
+  // return true;
+  break;}
+    case "quickPicks": {
+      console.log("Quick picks");
+      
+      const quickPicks = document.querySelector("#items-wrapper");
+      if (quickPicks) {
+        const quickSongs = [...quickPicks.querySelectorAll("ytmusic-responsive-list-item-renderer")].map((e,index) => {
+          const title = e.querySelector("yt-formatted-string.title.style-scope.ytmusic-responsive-list-item-renderer.complex-string")?.innerText || "Unknown Title";
+          const artist = e.querySelector("span.style-scope.yt-formatted-string")?.innerText || "Unknown Artist";
+          const cover = e.querySelector("img")?.src || "Unknown Cover";
+          const href = e.querySelector("a.yt-simple-endpoint.style-scope.ytmusic-responsive-list-item-renderer")?.getAttribute("href") || "";
+          return {
+            index:index,
+            href: href,
+            cover: cover,
+            title: title,
+            artist: [{ artist: artist, href: "" }],
+    }});
+        sendResponse({ quickSongs: quickSongs, status: "success", action: "quickPicks" });
+      } else {
+        sendResponse({ status: "error", message: "Quick picks not found" });
+      }
+      break;
+    }
     default:
       // Always handle unknown messages
       sendResponse({ status: "error", message: "Unknown action" });
