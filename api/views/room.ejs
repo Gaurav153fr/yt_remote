@@ -1,169 +1,77 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Room <%= roomCode %></title>
     <script src="/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <link rel="stylesheet" href="/main.css" />
-  </head>
-  <body>
-    <h1>Room <%= roomCode %></h1>
-    <p id="info">Connecting...</p>
+</head>
+<body class="m3-container">
+    <div class="player-layout">
+        <div class="artwork-card">
+            <img src="" alt="Album Art" id="songImg" crossorigin="anonymous" />
+        </div>
 
-    <!-- Remote Controller UI -->
-    <div class="img_container">
-      <img src="" alt="song" id="songImg" />
+        <div class="player-controls">
+            <header class="player-header">
+                <div class="status-badge" id="info">Connecting...</div>
+                <h1 class="room-title">Room <%= roomCode %></h1>
+            </header>
+
+            <div class="song-meta">
+                <h2 id="song">No song playing</h2>
+                <p id="artist">Unknown Artist</p>
+            </div>
+
+            <div class="seekbar-container">
+                <canvas id="waveCanvas"></canvas>
+                <input type="range" id="slideBar" min="0" max="1" step="0.001" value="0" />
+                <div class="time-info">
+                    <span id="currentTime">0:00</span>
+                    <span id="totalTime">0:00</span>
+                </div>
+            </div>
+
+            <div class="controller">
+                <button class="m3-icon-btn" id="prevSong">
+                    <span class="material-symbols-rounded">skip_previous</span>
+                </button>
+                <button class="m3-fab" id="play_pause">
+                    <span class="material-symbols-rounded" id="playIcon">play_arrow</span>
+                </button>
+                <button class="m3-icon-btn" id="nextSong">
+                    <span class="material-symbols-rounded">skip_next</span>
+                </button>
+            </div>
+
+            <div class="actions-row">
+                <button class="m3-text-btn" id="updateQueue">
+                    <span class="material-symbols-rounded">queue_music</span> Queue
+                </button>
+                <div class="chat-toggle">
+                    <input id="msgInput" placeholder="Message..." />
+                    <button id="sendBtn" class="m3-icon-btn small">
+                        <span class="material-symbols-rounded">send</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="panel-section">
+                <h3>Queue</h3>
+                <div id="queueContainer" class="m3-list"></div>
+            </div>
+            <div class="panel-section">
+                <h3>Messages</h3>
+                <ul id="messages" class="m3-chat-list"></ul>
+            </div>
+        </aside>
     </div>
-    <p>
-      <small>Currently Playing:</small>
-      <marquee behavior="scroll" id="song">No song</marquee> <br />
-      <small>By:</small><br />
-      <span id="artist">Unknown</span>
-    </p>
 
-    <div>
-      <input type="range" id="slideBar" min="0" max="1" step="0.01" />
-      <span id="sliderValue">Volume</span>
-    </div>
-
-    <div class="controller">
-      <button id="prevSong">⏮️</button>
-      <button id="play_pause">▶️</button>
-      <button id="nextSong">⏭️</button>
-    </div>
-
-    <button id="updateQueue">Update Queue</button>
-    <div id="queueContainer"></div>
-
-    <hr />
-
-    <!-- Room Chat -->
-    <div>
-      <h3>Send Message to Room</h3>
-      <input id="msgInput" placeholder="Type message" />
-      <button id="sendBtn">Send</button>
-    </div>
-
-    <h3>Room Messages:</h3>
-    <ul id="messages"></ul>
-
-    <script>
-      const socket = io();
-      const roomCode = "<%= roomCode %>";
-console.log("Room code:", roomCode);
-
-      // Auto-join room
-      socket.emit("joinRoom", roomCode);
-
-      // Chat
-      document.getElementById("sendBtn").onclick = () => {
-        const msg = document.getElementById("msgInput").value;
-        if (msg.trim() !== "") {
-          socket.emit("message", { roomCode, msg });
-          document.getElementById("msgInput").value = "";
-        }
-      };
-
-      socket.on("roomUpdate", (data) => {
-        document.getElementById("info").innerText =
-          `${data.message} | Members: ${data.members}`;
-      });
-
-      socket.on("message", (data) => {
-        const li = document.createElement("li");
-        li.innerText = data;
-        document.getElementById("messages").appendChild(li);
-      });
-
-      // --- Remote Controller ---
-      let img = "";
-      const sliderValue = document.getElementById("sliderValue");
-      const slider = document.getElementById("slideBar");
-
-      socket.on("song", (data) => {
-        console.log("Received song data:", data);
-
-        document.getElementById("song").textContent =
-          data.text.title || "No song";
-        document.getElementById("artist").textContent =
-          data.text.artist || "Unknown";
-
-        // Toggle Play/Pause button
-        document.getElementById("play_pause").innerHTML = data.text.playing
-          ? "⏸️"
-          : "▶️";
-
-        sliderValue.innerText = data.text.slider;
-        slider.value = timeToRatio(data.text.slider);
-
-        // Update image only if changed
-        if (data.text.image !== img) {
-          const updatedUrl = data.text.image.replace(
-            /(w)(\d+)-(h)(\d+)/,
-            `$1300-$3300`
-          );
-          document.getElementById("songImg").src = updatedUrl;
-          img = data.text.image;
-        }
-      });
-
-      slider.addEventListener("input", (event) => {
-        const value = event.target.value;
-        socket.emit("slider", { roomCode, value });
-      });
-
-      document.getElementById("nextSong").addEventListener("click", () => {
-        console.log("Next song clicked",roomCode);
-        
-        socket.emit("nextSong", {roomCode});
-      });
-
-      document.getElementById("prevSong").addEventListener("click", () => {
-        socket.emit("prevSong", {roomCode});
-      });
-
-      document.getElementById("play_pause").addEventListener("click", () => {
-        socket.emit("play_pause", {roomCode});
-      });
-
-      document
-        .getElementById("updateQueue")
-        .addEventListener("click", () => {
-          socket.emit("updateQueue", {roomCode});
-        });
-
-      socket.on("queue", (data) => {
-        console.log("Received queue data:", data);
-        const queueContainer = document.getElementById("queueContainer");
-        queueContainer.innerHTML = "";
-        data.queue.forEach((song) => {
-          const songDiv = document.createElement("div");
-          songDiv.classList.add("song");
-          songDiv.innerHTML = `<p>${song.title}</p>`;
-          queueContainer.appendChild(songDiv);
-        });
-      });
-
-      function timeToRatio(timeString) {
-  // Match strings like "1 Minutes 40 Seconds of 5 Minutes 52 Seconds"
-  const match = timeString.match(
-    /(\d+)\s*Minutes\s*(\d+)\s*Seconds\s*of\s*(\d+)\s*Minutes\s*(\d+)\s*Seconds/i
-  );
-
-  if (match) {
-    const currentMinutes = parseInt(match[1], 10);
-    const currentSeconds = parseInt(match[2], 10);
-    const totalMinutes = parseInt(match[3], 10);
-    const totalSeconds = parseInt(match[4], 10);
-
-    const currentTime = currentMinutes * 60 + currentSeconds;
-    const totalTime = totalMinutes * 60 + totalSeconds;
-
-    return (currentTime / totalTime).toFixed(4);
-  }
-
-  return null; // fallback if format doesn't match
-}
-
-    </script>
-  </body>
+    <script src="/logic.js"></script>
+</body>
 </html>

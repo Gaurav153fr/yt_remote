@@ -1,53 +1,134 @@
-* {
-  margin: 0%;
-  padding: 0;
+:root {
+  --primary: #d0bcff;
+  --on-primary: #381e72;
+  --primary-container: #4f378b;
+  --on-primary-container: #eaddff;
+  --surface: #1c1b1f;
+  --on-surface: #e6e1e5;
+  --surface-variant: #49454f;
+  --easing: cubic-bezier(0.2, 0, 0, 1);
 }
-body {
-  background-color: black;
-  color: white;
-  padding: 5px;
-}
-.controller {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 10px;
-}
-.controller button {
-  height: 50px;
-  margin-left: 10px;
-  margin-right: 10px;
-  border-radius: 50px;
 
-  background: transparent;
-  width: 50px;
-  border: none;
-  transition: all 0.1s linear;
-}
-.controller button:active {
-  background-color: rgb(73, 72, 72);
-}
-.controller button svg {
-  color: white;
-  height: 100%;
-  width: 100%;
-  margin: auto;
-}
-.img_container {
-  width: 300px;
-  height: 300px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: yellowgreen;
-  border-radius: 10px;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Google Sans', sans-serif;
+  background-color: var(--surface);
+  color: var(--on-surface);
+  height: 100vh;
   overflow: hidden;
-  margin: auto;
-  margin: 10px 0px;
+  transition: background 0.8s var(--easing);
 }
-#slideBar {
+
+/* Layout Engine */
+.player-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  height: 100%;
+  padding: 24px;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Landscape & Desktop */
+@media (min-width: 900px) or (orientation: landscape) {
+  .player-layout {
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+  }
+  .side-panel { display: block; overflow-y: auto; height: 80vh; }
+}
+
+/* Portrait / Mobile */
+@media (orientation: portrait) {
+  .player-layout {
+    grid-template-rows: auto 1fr;
+    overflow-y: auto;
+  }
+  .side-panel { display: none; } /* Hide panel on mobile to focus on player */
+}
+
+/* Artwork - Expressive M3 Shape */
+.artwork-card {
   width: 100%;
-  accent-color: red;
-  height: 50px;
+  aspect-ratio: 1/1;
+  max-width: 450px;
+  margin: 0 auto;
+  border-radius: 28px; /* M3 extra large shape */
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  transition: transform 0.5s var(--easing);
 }
+
+.artwork-card img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+/* Typography */
+.song-meta h2 { font-size: 2rem; margin-bottom: 4px; }
+.song-meta p { opacity: 0.7; font-size: 1.1rem; }
+
+/* Wave Seekbar */
+.seekbar-container {
+  position: relative;
+  width: 100%;
+  height: 60px;
+  margin: 20px 0;
+}
+
+#waveCanvas {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+#slideBar {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  width: 100%;
+  -webkit-appearance: none;
+  background: transparent;
+  z-index: 2;
+  cursor: pointer;
+}
+
+#slideBar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px; width: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+
+/* Controls */
+.controller {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin: 32px 0;
+}
+
+.m3-fab {
+  width: 80px; height: 80px;
+  border-radius: 24px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s var(--easing);
+}
+
+.m3-fab:active { transform: scale(0.9); }
+.m3-fab span { font-size: 40px; }
+
+.m3-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--on-surface);
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 50%;
+}
+
+.m3-icon-btn:hover { background: rgba(255,255,255,0.1); }

@@ -4,87 +4,152 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Music Sync</title>
-    <!-- Use Tailwind CSS for modern styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for a dark, cohesive look */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #121212;
-            color: #E0E0E0;
-            width: 320px; /* Standard popup width */
-            padding: 0;
-            margin: 0;
+            background: #0f172a;
+            color: #e0e0e0;
+            width: 320px;
+            overflow: hidden;
         }
-        .container {
-            padding: 1rem;
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.02);
         }
+
+        .header h1 {
+            font-size: 18px;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .content { padding: 20px; }
+
+        .room-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .room-code-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .room-code {
+            font-size: 36px;
+            font-weight: 800;
+            font-family: 'Monaco', monospace;
+            color: #fff;
+            letter-spacing: 4px;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .room-url {
+            font-size: 11px;
+            color: #6366f1;
+            text-decoration: none;
+            word-break: break-all;
+            display: block;
+            padding: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .room-url:hover { background: rgba(99, 102, 241, 0.2); }
+
+        .qr-wrapper {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            margin: 15px auto;
+            width: fit-content;
+            display: block;
+        }
+
         .btn {
-            @apply flex items-center justify-center px-4 py-2 font-medium rounded-full transition-colors duration-200;
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 15px;
         }
+
         .btn-primary {
-            @apply bg-indigo-600 hover:bg-indigo-700 text-white shadow-md;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            color: white;
         }
-        .btn-secondary {
-            @apply bg-gray-700 hover:bg-gray-600 text-gray-200;
+
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .feedback {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: #34d399;
+            color: #064e3b;
+            font-weight: 600;
+            transition: opacity 0.3s;
         }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <div class="container flex flex-col space-y-4">
-        <!-- Main Header -->
-        <h1 class="text-xl font-bold text-center text-white">YouTube Music Sync</h1>
+    <div class="header">
+        <h1>Sync Room</h1>
+    </div>
 
-        <!-- Now Playing Section -->
-        <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 class="text-base font-semibold text-white mb-2">Now Playing</h2>
-            <div class="flex items-center space-x-3">
-                <!-- Song and Artist Info -->
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-300">Song</p>
-                    <span id="song" class="text-lg font-semibold text-white truncate">Loading...</span>
+    <div class="content">
+        <div id="noRoomView">
+            <button id="createRoom" class="btn btn-primary">➕ Start New Session</button>
+        </div>
+
+        <div id="activeRoomView" class="hidden">
+            <div class="room-card">
+                <div class="room-code-label">Active Code</div>
+                <div id="roomCode" class="room-code">------</div>
+                
+                <div class="qr-wrapper" id="qrContainer">
+                    <div id="qrcode"></div>
                 </div>
-                <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-300">Artist</p>
-                    <span id="artist" class="text-lg font-semibold text-white truncate">Loading...</span>
-                </div>
+
+                <a id="roomUrl" class="room-url">Connecting...</a>
             </div>
-        </div>
-<div>
-    Toogle widgeet 
-    <button id="toggleWidget" class="btn btn-secondary w-full mt-2" data-state="false">On</button>
-</div>
-        <!-- Room Status Section -->
-        <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
-            <h2 class="text-base font-semibold text-white mb-2">Room Status</h2>
-            <p id="roomStatus" class="text-sm text-gray-300">No active room.</p>
-            <p id="connections" class="text-sm text-gray-300 mt-1">Connections: 0</p>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex justify-between space-x-2">
-            <button id="createRoom" class="btn btn-primary w-full">
-                Create Room
-            </button>
-            <button id="sendMessage" class="btn btn-secondary w-full">
-                Send Hello
+            
+            <button id="newRoomBtn" class="btn btn-primary" style="background: rgba(255,255,255,0.05); color: #94a3b8;">
+                🔄 Generate New Code
             </button>
         </div>
-
-        <!-- Feedback Messages -->
-        <p id="feedback" class="text-sm text-center text-gray-400 mt-2"></p>
-        <button id="quickPicks" class="btn btn-secondary w-full mt-2">Quick Picks</button>
-        <div id="quickPicksContainer" class="mt-2 space-y-2 max-h-40 overflow-y-auto"></div>
     </div>
-    
-    <div>
-        <h3>Settings</h3>
-        <span><label for="toggleMini">Enable mini player</label><input type="checkbox" id="toggleMini"></span>
 
-        <button id="saveSettings">Save</button>
-    </div>
-    <!-- JS placed at end so elements exist -->
+    <div id="feedback" class="feedback hidden">Copied!</div>
+
+    <script src="qrcode.min.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>
