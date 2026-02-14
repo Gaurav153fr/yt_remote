@@ -223,21 +223,27 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (ytMusicTabId === tabId) ytMusicTabId = null;
 });
-const SERVER_ADDRESS = "yt-remote.onrender.com";
+// 1. Add the port your server is listening on
+const SERVER_ADDRESS = "https://yt-remote.onrender.com"; // Change this to your server's address
 
 console.log("Connecting to server:", SERVER_ADDRESS);
 
-const socket = io(`wss://${SERVER_ADDRESS}`, {
+// 2. Use the address variable directly
+const socket = io(SERVER_ADDRESS, {
   transports: ["websocket"],
   autoConnect: true,
   forceNew: true,
 });
 
 socket.on("connect", () => {
-  console.log("Connected to server");
+  console.log("Connected to server!");
   socket.emit("createRoom");
 });
 
+// 3. Add an error listener to see exactly what's wrong
+socket.on("connect_error", (err) => {
+  console.error("Connection failed:", err.message);
+});
 socket.on("roomCreated", (data) => {
   console.log("Room created:", data);
   roomCode = data.roomCode;

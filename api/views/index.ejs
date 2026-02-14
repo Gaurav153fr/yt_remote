@@ -1,46 +1,214 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Socket.IO Rooms</title>
-  <script src="/socket.io/socket.io.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Room | YT Music Sync</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #030303;
+            --surface: #121212;
+            --primary: #ff0000;
+            --on-surface: #ffffff;
+            --on-surface-variant: #aaaaaa;
+            --error: #ff4444;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg);
+            color: var(--on-surface);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Ambient background glow */
+        .glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            opacity: 0.1;
+            z-index: -1;
+            filter: blur(60px);
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            letter-spacing: -1px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        input {
+            width: 100%;
+            background: var(--surface);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 18px;
+            font-size: 1.2rem;
+            color: white;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s, transform 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            transform: scale(1.02);
+        }
+
+        input::placeholder {
+            text-transform: none;
+            letter-spacing: normal;
+            color: #555;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary {
+            background-color: var(--on-surface);
+            color: black;
+        }
+
+        .btn-primary:hover {
+            background-color: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--on-surface-variant);
+            text-decoration: underline;
+        }
+
+        .btn-secondary:hover {
+            color: white;
+        }
+
+        .status-msg {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--on-surface-variant);
+        }
+
+        /* Keyboard hint */
+        .hint {
+            font-size: 0.75rem;
+            color: #444;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Socket.IO Room Example</h1>
 
-  <button id="createRoom">Create Room</button>
-  <br><br>
-  <input id="roomCodeInput" placeholder="Enter room code">
-  <button id="joinRoom">Join Room</button>
+    <div class="glow"></div>
 
-  <h2 id="status"></h2>
+    <div class="container">
+        <h1>YT Sync</h1>
 
-  <script>
-    const socket = io();
+        <div class="input-group">
+            <input type="text" id="roomCodeInput" placeholder="Enter Room Code" autocomplete="off" maxlength="10">
+            <div class="hint">Press <b>Enter</b> to join</div>
+        </div>
 
-    document.getElementById("createRoom").onclick = () => {
-      socket.emit("createRoom");
-    };
+        <button class="btn btn-primary" id="joinRoom">Join Room</button>
+        <button class="btn btn-secondary" id="createRoom">Create New Room</button>
 
-    document.getElementById("joinRoom").onclick = () => {
-      const code = document.getElementById("roomCodeInput").value.trim();
-      console.log("Joining room:", code);
-      
-      if (code) {
-socket.emit("joinRoom", code); // string is fine now
-      }
-    };
+        <p id="status" class="status-msg"></p>
+    </div>
 
-    socket.on("roomCreated", (data) => {
-      window.location.href = `/room/${data.roomCode}`;
-    });
+    <script>
+        const socket = io();
+        const input = document.getElementById("roomCodeInput");
+        const joinBtn = document.getElementById("joinRoom");
+        const createBtn = document.getElementById("createRoom");
 
-    socket.on("joinedRoom", (data) => {
-      window.location.href = `/room/${data.roomCode}`;
-    });
+        // Existing Create Logic
+        createBtn.onclick = () => {
+            socket.emit("createRoom");
+        };
 
-    socket.on("errorMessage", (msg) => {
-      alert(msg);
-    });
-  </script>
+        // Shared Join Logic
+        const handleJoin = () => {
+            const code = input.value.trim();
+            if (code) {
+                console.log("Joining room:", code);
+                socket.emit("joinRoom", code);
+            } else {
+                input.style.borderColor = "var(--error)";
+                setTimeout(() => input.style.borderColor = "#333", 1000);
+            }
+        };
+
+        // Click Event
+        joinBtn.onclick = handleJoin;
+
+        // --- Keyboard Support ---
+        input.addEventListener("keypress", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                handleJoin();
+            }
+        });
+
+        // Auto-focus input on load
+        window.onload = () => input.focus();
+
+        // --- Socket Redirect Rules (Unchanged) ---
+        socket.on("roomCreated", (data) => {
+            window.location.href = `/room/${data.roomCode}`;
+        });
+
+        socket.on("joinedRoom", (data) => {
+            window.location.href = `/room/${data.roomCode}`;
+        });
+
+        socket.on("errorMessage", (msg) => {
+            // Styled alert alternative
+            const status = document.getElementById("status");
+            status.innerText = msg;
+            status.style.color = "var(--error)";
+            
+            // Shake effect on error
+            input.animate([
+                { transform: 'translateX(-5px)' },
+                { transform: 'translateX(5px)' }
+            ], { duration: 100, iterations: 4 });
+        });
+    </script>
 </body>
 </html>

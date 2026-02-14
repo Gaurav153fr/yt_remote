@@ -3,75 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room <%= roomCode %></title>
+    <title>Room <%= roomCode %> | YT Music Sync</title>
+    
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
-    <link rel="stylesheet" href="/main.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #ff0000;
+            --surface: #030303;
+            --on-surface: #ffffff;
+            --on-surface-variant: #aaaaaa;
+            --m3-easing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--surface);
+            color: var(--on-surface);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            cursor: default;
+        }
+
+        /* Ambient Glow Background */
+        .bg-glow {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, var(--primary) 0%, transparent 75%);
+            opacity: 0.18; filter: blur(100px); z-index: -1;
+            transition: background 1.5s var(--m3-easing);
+            pointer-events: none;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            width: 100%;
+            max-width: 1100px;
+            padding: 24px;
+            gap: 40px;
+            align-items: center;
+            z-index: 1;
+        }
+
+        /* Responsive Desktop Layout */
+        @media (min-width: 900px) {
+            .app-container { grid-template-columns: 1fr 1.1fr; padding: 60px; gap: 80px; }
+        }
+
+        /* Artwork Styling */
+        .artwork-section { display: flex; justify-content: center; align-items: center; }
+        
+        .artwork-card {
+            width: 100%;
+            max-width: 320px; /* Mobile size */
+            aspect-ratio: 1/1;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            transition: transform 1s var(--m3-easing);
+            background: #121212;
+        }
+
+        @media (min-width: 900px) { .artwork-card { max-width: 450px; } }
+        
+        .artwork-card.playing { transform: scale(1.04); }
+        .artwork-card img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+
+        /* Song Info */
+        .song-info { text-align: center; }
+        @media (min-width: 900px) { .song-info { text-align: left; } }
+
+        .song-info h1 { font-size: 1.8rem; margin: 0; font-weight: 700; letter-spacing: -0.5px; }
+        .song-info p { font-size: 1.1rem; color: var(--on-surface-variant); margin: 8px 0 32px 0; }
+        
+        @media (min-width: 900px) {
+            .song-info h1 { font-size: 3rem; }
+            .song-info p { font-size: 1.4rem; }
+        }
+
+        /* Seekbar Logic */
+        .seekbar-container { width: 100%; margin-top: 20px; }
+        
+        /* The actual clickable range input */
+        #slideBar {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        #slideBar::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
+        
+        #slideBar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px; width: 14px;
+            border-radius: 50%;
+            background: var(--on-surface);
+            margin-top: -4px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* Custom fill color (Webkit only hack for better visual) */
+        #slideBar {
+            background: linear-gradient(to right, var(--primary) var(--progress, 0%), rgba(255,255,255,0.15) var(--progress, 0%));
+        }
+
+        .time-row { 
+            display: flex; justify-content: space-between; font-size: 0.85rem; 
+            margin-top: 12px; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; 
+        }
+
+        /* Controls */
+        .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; width: 100%; }
+        
+        .btn-icon { 
+            background: none; border: none; color: white; cursor: pointer; 
+            font-size: 28px; transition: transform 0.2s, opacity 0.2s; 
+            display: flex; align-items: center; justify-content: center;
+            padding: 8px;
+        }
+        .btn-icon:hover { opacity: 0.8; transform: scale(1.1); }
+        .btn-icon:active { transform: scale(0.9); }
+        
+        .play-btn { 
+            width: 72px; height: 72px; border-radius: 50%; background: white; 
+            color: black; border: none; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer; transition: transform 0.2s ease;
+        }
+        .play-btn:hover { transform: scale(1.05); }
+        .play-btn span { font-size: 40px; font-variation-settings: 'FILL' 1; }
+
+        /* Room Header */
+        .room-header { position: absolute; top: 20px; left: 24px; z-index: 10; }
+        .room-header h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--on-surface-variant); margin: 0; }
+        .room-header p { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--primary); font-weight: 500; }
+    </style>
 </head>
-<body class="m3-container">
-    <div class="player-layout">
-        <div class="artwork-card">
-            <img src="" alt="Album Art" id="songImg" crossorigin="anonymous" />
+<body>
+
+    <div class="bg-glow" id="glow"></div>
+
+    <div class="room-header">
+        <h2>Room: <%= roomCode %></h2>
+        <p id="info">Connecting...</p>
+    </div>
+
+    <div class="app-container">
+        <div class="artwork-section">
+            <div class="artwork-card" id="card">
+                <img id="songImg" src="" crossorigin="Anonymous" alt="Album Art">
+            </div>
         </div>
 
-        <div class="player-controls">
-            <header class="player-header">
-                <div class="status-badge" id="info">Connecting...</div>
-                <h1 class="room-title">Room <%= roomCode %></h1>
-            </header>
-
-            <div class="song-meta">
-                <h2 id="song">No song playing</h2>
-                <p id="artist">Unknown Artist</p>
+        <div class="player-interface">
+            <div class="song-info">
+                <h1 id="song">Waiting for Data</h1>
+                <p id="artist">Artist Unknown</p>
             </div>
 
             <div class="seekbar-container">
-                <canvas id="waveCanvas"></canvas>
-                <input type="range" id="slideBar" min="0" max="1" step="0.001" value="0" />
-                <div class="time-info">
-                    <span id="currentTime">0:00</span>
-                    <span id="totalTime">0:00</span>
+                <input type="range" id="slideBar" min="0" max="1" step="0.0001" value="0">
+                <div class="time-row">
+                    <span id="curTime">0:00</span>
+                    <span id="durTime">0:00</span>
                 </div>
             </div>
 
-            <div class="controller">
-                <button class="m3-icon-btn" id="prevSong">
-                    <span class="material-symbols-rounded">skip_previous</span>
-                </button>
-                <button class="m3-fab" id="play_pause">
+            <div class="controls">
+                <button class="btn-icon" title="Shuffle"><span class="material-symbols-rounded">shuffle</span></button>
+                <button class="btn-icon" id="prevSong" title="Previous"><span class="material-symbols-rounded" style="font-size: 42px;">skip_previous</span></button>
+                
+                <button class="play-btn" id="play_pause" title="Play/Pause">
                     <span class="material-symbols-rounded" id="playIcon">play_arrow</span>
                 </button>
-                <button class="m3-icon-btn" id="nextSong">
-                    <span class="material-symbols-rounded">skip_next</span>
-                </button>
-            </div>
-
-            <div class="actions-row">
-                <button class="m3-text-btn" id="updateQueue">
-                    <span class="material-symbols-rounded">queue_music</span> Queue
-                </button>
-                <div class="chat-toggle">
-                    <input id="msgInput" placeholder="Message..." />
-                    <button id="sendBtn" class="m3-icon-btn small">
-                        <span class="material-symbols-rounded">send</span>
-                    </button>
-                </div>
+                
+                <button class="btn-icon" id="nextSong" title="Next"><span class="material-symbols-rounded" style="font-size: 42px;">skip_next</span></button>
+                <button class="btn-icon" title="Repeat"><span class="material-symbols-rounded">repeat</span></button>
             </div>
         </div>
-
-        <aside class="side-panel">
-            <div class="panel-section">
-                <h3>Queue</h3>
-                <div id="queueContainer" class="m3-list"></div>
-            </div>
-            <div class="panel-section">
-                <h3>Messages</h3>
-                <ul id="messages" class="m3-chat-list"></ul>
-            </div>
-        </aside>
     </div>
 
-    <script src="/logic.js"></script>
+    <script>
+        const socket = io();
+        const roomCode = "<%= roomCode %>";
+        const colorThief = new ColorThief();
+        
+        let lastImgUrl = ""; 
+        let lastTitle = "";
+
+        // Join Room
+        socket.emit("joinRoom", roomCode);
+
+        // --- Socket Listeners ---
+        socket.on("roomUpdate", (data) => {
+            document.getElementById("info").innerText = `Live • ${data.members} Listeners`;
+        });
+
+        socket.on("song", (data) => {
+            const songData = data.text;
+            if(!songData) return;
+
+            // 1. Text Update (Only if title changes)
+            if (lastTitle !== songData.title) {
+                document.getElementById('song').innerText = songData.title || "No Title";
+                document.getElementById('artist').innerText = songData.artist || "Unknown";
+                lastTitle = songData.title;
+            }
+
+            // 2. Play/Pause Visuals
+            const playIcon = document.getElementById('playIcon');
+            const card = document.getElementById('card');
+            if (songData.playing) {
+                playIcon.innerText = 'pause';
+                card.classList.add('playing');
+            } else {
+                playIcon.innerText = 'play_arrow';
+                card.classList.remove('playing');
+            }
+
+            // 3. Slider Sync (Using your timeToRatio logic)
+            const ratio = timeToRatio(songData.slider);
+            const slider = document.getElementById('slideBar');
+            slider.value = ratio;
+            // Visual feedback for the bar fill
+            slider.style.setProperty('--progress', (ratio * 100) + '%');
+
+            // Update Time Labels
+            const m = songData.slider.match(/\d+/g);
+            if(m && m.length >= 4) {
+                document.getElementById('curTime').innerText = `${m[0]}:${m[1].padStart(2, '0')}`;
+                document.getElementById('durTime').innerText = `${m[2]}:${m[3].padStart(2, '0')}`;
+            }
+
+            // 4. Image Protection (Loads only once per song change)
+            if (songData.image && songData.image !== lastImgUrl) {
+                lastImgUrl = songData.image;
+                
+                // Regex for high-res swap
+                const highResUrl = songData.image.replace(/(w)(\d+)-(h)(\d+)/, `$1600-$3600`);
+                const imgElement = document.getElementById('songImg');
+                
+                imgElement.src = songData.image.includes('/0') 
+                    ? 'https://via.placeholder.com/600/222/fff?text=No+Cover' 
+                    : highResUrl;
+            }
+        });
+
+        // --- Interaction Handlers (Socket Emits) ---
+        
+        // Slider Interaction (Matches your original logic)
+        document.getElementById("slideBar").addEventListener("input", (e) => {
+            const value = e.target.value;
+            // Update visual fill immediately for better feel
+            e.target.style.setProperty('--progress', (value * 100) + '%');
+            socket.emit("slider", { roomCode, value });
+        });
+
+        document.getElementById("play_pause").onclick = () => socket.emit("play_pause", { roomCode });
+        document.getElementById("nextSong").onclick = () => socket.emit("nextSong", { roomCode });
+        document.getElementById("prevSong").onclick = () => socket.emit("prevSong", { roomCode });
+
+        // --- Helpers ---
+
+        function timeToRatio(timeString) {
+            const match = timeString.match(/(\d+)\s*Minutes\s*(\d+)\s*Seconds\s*of\s*(\d+)\s*Minutes\s*(\d+)\s*Seconds/i);
+            if (match) {
+                const current = parseInt(match[1]) * 60 + parseInt(match[2]);
+                const total = parseInt(match[3]) * 60 + parseInt(match[4]);
+                return total > 0 ? (current / total).toFixed(4) : 0;
+            }
+            return 0;
+        }
+
+        document.getElementById('songImg').onload = function() {
+            try {
+                const color = colorThief.getColor(this);
+                const rgb = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                document.documentElement.style.setProperty('--primary', rgb);
+            } catch (e) {
+                document.documentElement.style.setProperty('--primary', '#ff0000');
+            }
+        };
+    </script>
 </body>
 </html>
