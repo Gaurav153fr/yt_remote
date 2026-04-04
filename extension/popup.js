@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const noRoomView = document.getElementById("noRoomView");
   const activeRoomView = document.getElementById("activeRoomView");
   const feedback = document.getElementById("feedback");
-  
+  const updateQueueBtn = document.getElementById("updateQueue");
   let qrCodeInstance = null;
 
   // 1. Check for existing room on open
@@ -18,7 +18,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 2. Click to Copy Room Code
   roomCodeEl.addEventListener('click', () => copyToClipboard(roomCodeEl.textContent));
-  
+  updateQueueBtn.addEventListener('click', () => {
+    getQueue().then(queue => {
+      showToast("Queue Updated!");
+    });})
   // 3. Click to Copy/Open URL
   roomUrlEl.addEventListener('click', (e) => {
     e.preventDefault();
@@ -39,6 +42,45 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  async function getQueue() {
+    // Use a Promise-based wrapper for the message
+    const response = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: "getQueue" }, resolve);
+    });
+  
+    if (!response || !response.queue) {
+      console.error("Queue not found");
+      return [];
+    }
+  
+    const container = document.getElementById("queueData");
+    container.innerHTML = ""; // Clear existing list to prevent duplicates
+  
+    response.queue.forEach((item, index) => {
+      const li = document.createElement("li");
+      li.textContent = `${index + 1}. ${item.title} - ${item.artist[0].artist}`;
+      li.style.cursor = "pointer"; // Visual cue that it's clickable
+  
+      // Add the click listener
+      li.addEventListener("click", () => {
+        chrome.runtime.sendMessage(
+          { type: "playQueue", data: index },
+          (res) => {
+            if (res?.status === "success") {
+              showToast(`Playing: ${item.title}`);
+            } else {
+              showToast(`Failed to play: ${item.title}`);
+            }
+          }
+        );
+      });
+  
+      container.appendChild(li);
+    });
+  
+    return response.queue;
+  }
+  getQueue();
   function updateUI(roomId) {
     const cleanCode = roomId.slice(-6).toUpperCase();
     const fullUrl = `https://yt-remote.onrender.com/room/${roomId}`;

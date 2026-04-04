@@ -72,6 +72,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
     }
 
+    case "pauseOnly": {
+      const video = document.querySelector("video");
+      if (video) {
+        video.pause();
+      }
+      sendResponse({ status: "success", action: "pauseOnly" });
+      break;
+    }
+
     case "prevSong": {
       const prevButton = document.querySelector(".previous-button");
       if (prevButton) {
@@ -119,8 +128,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // return true;
       break;
     }
-    case "playQuick": {
-      const song = document.querySelector(`a[href='${message.data}']`);
+    case "playQueue": {
+      const song = document.querySelectorAll("a.ytmusic-player-queue-item")[message.data];
       console.log("song", song);
       injectPlay(message.data);
       function injectPlay(href) {
@@ -158,7 +167,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const queueList = document.querySelector("ytmusic-player-queue");
       if (queueList) {
         const playlist = [...queueList.querySelectorAll("ytmusic-player-queue-item")].map((e) => {
-          const title = e.querySelector(".title.ytmusic-player-queue-item")?.textContent.trim() || "Unknown Title";
+          const title = e.querySelector("yt-formatted-string")?.textContent.trim() || "Unknown Title";
           const artist = e.querySelector(".byline.ytmusic-player-queue-item")?.textContent.trim() || "Unknown Artist";
           const duration = e.querySelector(".duration")?.textContent.trim() || "Unknown Duration";
           const cover = e.querySelector("img")?.src || "Unknown Cover";
@@ -204,9 +213,113 @@ case "toggleWidget":{
       }
       break;
     }
+    
+    case "getHomeShelves": {
+      const shelves = document.querySelectorAll("ytmusic-carousel-shelf-renderer");
+      const result = [];
+      
+      shelves.forEach((shelf, shelfIdx) => {
+          const titleEl = shelf.querySelector("h2 yt-formatted-string") || shelf.querySelector(".title");
+          const shelfTitle = titleEl ? titleEl.textContent.trim() : "";
+          if (!shelfTitle) return;
+          
+          const items = [...shelf.querySelectorAll("ytmusic-responsive-list-item-renderer, ytmusic-two-row-item-renderer")];
+          if (items.length === 0) return;
+          
+          const parsedItems = items.map((e, index) => {
+              let title = e.querySelector(".title")?.textContent.trim() || e.querySelector("a.yt-simple-endpoint")?.textContent.trim();
+              let artist = e.querySelector(".secondary-flex-columns yt-formatted-string")?.textContent.trim() || e.querySelector(".subtitle")?.textContent.trim();
+              let cover = e.querySelector("img")?.src;
+              
+              if (!title) title = e.querySelector("yt-formatted-string.title")?.textContent.trim() || "Unknown Title";
+              if (!artist) artist = e.querySelector("yt-formatted-string.subtitle")?.textContent.trim() || "Unknown Artist";
+              
+              return {
+                  shelfIdx: shelfIdx,
+                  itemIdx: index,
+                  title: title,
+                  artist: [{ artist: artist, href: "" }],
+                  cover: cover || "Unknown Cover"
+              };
+          });
+          
+          result.push({
+             title: shelfTitle,
+             items: parsedItems
+          });
+      });
+      
+      sendResponse({ shelves: result, status: "success", action: "getHomeShelves" });
+      break;
+    }
+
+    case "playShelfItem": {
+      const { shelfIdx, itemIdx } = message.data;
+      const shelves = document.querySelectorAll("ytmusic-carousel-shelf-renderer");
+      const shelf = shelves[shelfIdx];
+      
+      if (shelf) {
+          const items = shelf.querySelectorAll("ytmusic-responsive-list-item-renderer, ytmusic-two-row-item-renderer");
+          const item = items[itemIdx];
+          
+          if (item) {
+              const playBtn = item.querySelector("ytmusic-play-button-renderer") || item.querySelector("a.yt-simple-endpoint") || item;
+              
+              // We simulate click via pointer event or direct click
+              const evt = new PointerEvent("click", {
+                bubbles: true, cancelable: true, composed: true, view: window
+              });
+              playBtn.dispatchEvent(evt);
+              sendResponse({ status: "success" });
+              break;
+          }
+      }
+      sendResponse({ status: "error", message: "Shelf item not found" });
+      break;
+    }
+
     default:
       // Always handle unknown messages
       sendResponse({ status: "error", message: "Unknown action" });
      break;
   }
 });
+
+let lastScrapedCount = 0;
+function scrapeLikedSongsFromDOM() {
+    const items = document.querySelectorAll("ytmusic-responsive-list-item-renderer");
+    if (items.length === 0 || items.length === lastScrapedCount) return;
+    
+    const songs = [...items].map((e, index) => {
+          let title = e.querySelector(".title")?.textContent.trim() || "";
+          let artist = e.querySelector(".secondary-flex-columns yt-formatted-string")?.textContent.trim() || "";
+          let cover = e.querySelector("img")?.src || "";
+          let href = e.querySelector("a.yt-simple-endpoint")?.href || "";
+          let videoIdMatch = href.match(/v=([a-zA-Z0-9_-]+)/);
+          let videoId = videoIdMatch ? videoIdMatch[1] : "";
+          
+          return {
+             itemIdx: index,
+             videoId: videoId,
+             title: title,
+             artist: [{ artist: artist, href: "" }],
+             cover: cover
+          };
+    }).filter(s => s.videoId && s.title);
+    
+    if (songs.length > 0) {
+        lastScrapedCount = items.length;
+        chrome.storage.local.set({ likedSongsCache: songs }, () => {
+            console.log("Saved", songs.length, "liked songs to cache");
+        });
+    }
+}
+
+// Check every few seconds if user is on Liked Songs page to passively build the cache
+setInterval(() => {
+    if (window.location.href.includes("list=LM")) {
+        scrapeLikedSongsFromDOM();
+    } else {
+        lastScrapedCount = 0; // reset so if they return, it rescrapes
+    }
+}, 3000);

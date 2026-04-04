@@ -156,9 +156,17 @@ if (!window.__ytm_widget_initialized__) {
     /* LYRIC ANIMATION */
     #page-lyrics { 
         overflow-y: auto; max-height: 160px; font-size: 15px; 
-        text-align: center; color: var(--fg); line-height: 1.8;
+        text-align: center; color: var(--fg); line-height: 1.8; position: relative;
         scrollbar-width: none; mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
     }
+    .refresh-btn {
+        position: absolute; top: 0px; right: 0px; 
+        background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%;
+        width: 26px; height: 26px; color: var(--fg); cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: transform 0.4s ease, background 0.2s; z-index: 20;
+    }
+    .refresh-btn:hover { background: rgba(255,255,255,0.2); transform: rotate(90deg); }
     .lyric-line { 
         opacity: 0.3; transform: scale(0.95); transition: 0.4s all ease; 
         margin-bottom: 8px; font-weight: 400;
@@ -170,6 +178,41 @@ if (!window.__ytm_widget_initialized__) {
     .lyric-line.passed { opacity: 0.5; transform: scale(0.98); }
     
     @keyframes lyricFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+    /* QUEUE PAGE / EXPLORE PAGE */
+    #page-queue { 
+        overflow-y: hidden; display: none; flex-direction: column; max-height: 180px; font-size: 13px; 
+        color: var(--fg); padding: 5px 0;
+    }
+    :host(.is-expanded) #page-queue.active { display: flex; }
+    
+    .explore-subtabs {
+        display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+        padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .subtab-pill {
+        padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 14px;
+        font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+        transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.6);
+    }
+    .subtab-pill:hover { background: rgba(255,255,255,0.15); }
+    .subtab-pill.active { background: var(--fg); color: var(--bg-expanded); }
+
+    #queue-content {
+        overflow-y: auto; scrollbar-width: none; flex-grow: 1; padding-bottom: 20px;
+        mask-image: linear-gradient(to bottom, transparent, black 5%, black 85%, transparent);
+    }
+    
+    .queue-item { 
+        display: flex; align-items: center; padding: 6px 8px; 
+        margin-bottom: 6px; border-radius: 8px; cursor: pointer;
+        background: rgba(255,255,255,0.08); transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05);
+    }
+    .queue-item:hover { background: rgba(255,255,255,0.2); transform: scale(1.02); }
+    .queue-idx { width: 24px; font-weight: bold; opacity: 0.6; flex-shrink: 0; text-align: center; }
+    .queue-details { display: flex; flex-direction: column; overflow: hidden; white-space: nowrap; flex-grow: 1; margin-left: 6px; }
+    .queue-title { text-overflow: ellipsis; overflow: hidden; font-weight: 600; }
+    .queue-artist { font-size: 11px; opacity: 0.6; text-overflow: ellipsis; overflow: hidden; }
   `;
   shadow.appendChild(style);
 
@@ -180,6 +223,8 @@ if (!window.__ytm_widget_initialized__) {
     <div class="nav-tabs">
         <button class="tab-btn active" data-page="player"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-disc3-icon lucide-disc-3"><circle cx="12" cy="12" r="10"/><path d="M6 12c0-1.7.7-3.2 1.8-4.2"/><circle cx="12" cy="12" r="2"/><path d="M18 12c0 1.7-.7 3.2-1.8 4.2"/></svg></button>
         <button class="tab-btn" data-page="lyrics"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mic-vocal-icon lucide-mic-vocal"><path d="m11 7.601-5.994 8.19a1 1 0 0 0 .1 1.298l.817.818a1 1 0 0 0 1.314.087L15.09 12"/><path d="M16.5 21.174C15.5 20.5 14.372 20 13 20c-2.058 0-3.928 2.356-6 2-2.072-.356-2.775-3.369-1.5-4.5"/><circle cx="16" cy="7" r="5"/></svg></button>
+        <button class="tab-btn" data-page="queue"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-music"><path d="M21 15V6"/><path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/></svg></button>
+        <button class="search-trigger-btn" id="btn-search" style="background:transparent;border:none;color:inherit;cursor:pointer;opacity:0.5;transition:0.2s;display:flex;align-items:center;justify-content:center;padding:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
     </div>
 
     <div class="mini-player-content">
@@ -212,7 +257,17 @@ if (!window.__ytm_widget_initialized__) {
         </div>
     </div>
     <div class="page" id="page-lyrics">
+        <button id="refresh-lyrics" class="refresh-btn" title="Refresh Lyrics">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
         <div id="lyrics-content"></div>
+    </div>
+    <div class="page" id="page-queue">
+        <div class="explore-subtabs" id="explore-tabs">
+            <div class="subtab-pill active" data-sub="Up Next">Up Next</div>
+            <!-- Dynamic shelves will go here -->
+        </div>
+        <div id="queue-content">Loading queue...</div>
     </div>
   `;
   shadow.appendChild(wrap);
@@ -689,7 +744,14 @@ const onUp = (ev) => {
       
       if (currentSongID !== d.title) {
           currentSongID = d.title;
+          shadow.getElementById("lyrics-content").innerHTML = "<div style='opacity:0.5; margin-top:20px;'>Loading lyrics...</div>";
+          shadow.getElementById("mini-lyric-text").innerHTML = "<span>...</span>";
+          parsedLyrics = [];
           chrome.runtime.sendMessage({ type: "widget:lyrics", data: true });
+          
+          if (activePage === 'queue') {
+              updateQueueDisplay();
+          }
       }
 
       if (d.progressPct !== undefined && !isScrubbing) {
@@ -742,6 +804,160 @@ const onUp = (ev) => {
     e.stopPropagation();
     chrome.runtime.sendMessage({ type: "widget:control", action: "nextSong" });
   };
+  shadow.getElementById("refresh-lyrics").onclick = (e) => {
+    e.stopPropagation();
+    const btn = shadow.getElementById("refresh-lyrics");
+    btn.style.transform = "rotate(360deg)";
+    setTimeout(() => { btn.style.transition = "none"; btn.style.transform = "rotate(0deg)"; setTimeout(() => btn.style.transition = "transform 0.4s ease, background 0.2s", 50); }, 400);
+    
+    shadow.getElementById("lyrics-content").innerHTML = "<div style='opacity:0.5; margin-top:20px;'>Refreshing lyrics...</div>";
+    shadow.getElementById("mini-lyric-text").innerHTML = "<span>...</span>";
+    parsedLyrics = [];
+    chrome.runtime.sendMessage({ type: "widget:lyrics", data: true });
+  };
+
+  let activeExploreSubtab = "Up Next";
+  let cachedShelves = [];
+
+  const renderUpNext = () => {
+    chrome.runtime.sendMessage({ type: "getQueue" }, (response) => {
+      const container = shadow.getElementById("queue-content");
+      if (!response || !response.queue || response.queue.length === 0) {
+        container.innerHTML = "<div style='text-align:center; opacity:0.5; margin-top:40px;'>Queue is empty</div>";
+        return;
+      }
+      container.innerHTML = "";
+      response.queue.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "queue-item";
+        div.innerHTML = `
+          <div class="queue-idx">${index + 1}</div>
+          <div class="queue-details">
+            <div class="queue-title">${item.title}</div>
+            <div class="queue-artist">${item.artist && item.artist[0] ? item.artist[0].artist : 'Unknown'}</div>
+          </div>
+        `;
+        div.onclick = (e) => {
+            e.stopPropagation();
+            chrome.runtime.sendMessage({ type: "playQueue", data: index });
+        };
+        container.appendChild(div);
+      });
+    });
+  };
+
+  const renderLikedSongs = () => {
+    shadow.getElementById("queue-content").innerHTML = `<div style='text-align:center; opacity:0.5; margin-top:40px;'>Loading Liked Songs...</div>`;
+    chrome.runtime.sendMessage({ type: "getLikedSongs" }, (response) => {
+      const container = shadow.getElementById("queue-content");
+      if (!response || !response.data || response.data.length === 0) {
+        container.innerHTML = "<div style='text-align:center; opacity:0.5; margin-top:40px; padding: 0 10px; line-height: 1.5;'>Please visit your Liked Songs playlist in YouTube Music once to sync them!</div>";
+        return;
+      }
+      container.innerHTML = "";
+      response.data.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "queue-item";
+        div.innerHTML = `
+          <div class="queue-idx">${index + 1}</div>
+          <div class="queue-details">
+            <div class="queue-title">${item.title}</div>
+            <div class="queue-artist">${item.artist && item.artist[0] ? item.artist[0].artist : 'Unknown'}</div>
+          </div>
+        `;
+        div.onclick = (e) => {
+            e.stopPropagation();
+            chrome.runtime.sendMessage({ type: "playLikedSong", videoId: item.videoId });
+            container.innerHTML = `<div style='text-align:center; opacity:0.5; margin-top:40px;'>Playing ${item.title}...</div>`;
+        };
+        container.appendChild(div);
+      });
+    });
+  };
+
+  const renderShelf = (shelfTitle) => {
+    const shelf = cachedShelves.find(s => s.title === shelfTitle);
+    const container = shadow.getElementById("queue-content");
+    if (!shelf || !shelf.items || shelf.items.length === 0) {
+        container.innerHTML = `<div style='text-align:center; opacity:0.5; margin-top:40px;'>No items in ${shelfTitle}</div>`;
+        return;
+    }
+    container.innerHTML = "";
+    shelf.items.forEach((item, displayIdx) => {
+        const div = document.createElement("div");
+        div.className = "queue-item";
+        div.innerHTML = `
+          <div class="queue-idx">${displayIdx + 1}</div>
+          <div class="queue-details">
+            <div class="queue-title">${item.title}</div>
+            <div class="queue-artist">${item.artist && item.artist[0] ? item.artist[0].artist : 'Unknown'}</div>
+          </div>
+        `;
+        div.onclick = (e) => {
+            e.stopPropagation();
+            chrome.runtime.sendMessage({ type: "playShelfItem", data: { shelfIdx: item.shelfIdx, itemIdx: item.itemIdx } });
+            container.innerHTML = `<div style='text-align:center; opacity:0.5; margin-top:40px;'>Playing ${item.title}...</div>`;
+        };
+        container.appendChild(div);
+    });
+  };
+
+  const fetchDynamicShelves = () => {
+    chrome.runtime.sendMessage({ type: "getHomeShelves" }, (response) => {
+        if (response && response.status === "success" && response.shelves) {
+            cachedShelves = response.shelves;
+            
+            const tabsContainer = shadow.getElementById("explore-tabs");
+            tabsContainer.innerHTML = `<div class="subtab-pill ${activeExploreSubtab === 'Up Next' ? 'active' : ''}" data-sub="Up Next">Up Next</div>`;
+            
+            const likedPill = document.createElement("div");
+            likedPill.className = `subtab-pill ${activeExploreSubtab === 'Liked Songs' ? 'active' : ''}`;
+            likedPill.dataset.sub = "Liked Songs";
+            likedPill.textContent = "Liked Songs";
+            tabsContainer.appendChild(likedPill);
+            
+            cachedShelves.forEach(shelf => {
+                const sub = document.createElement("div");
+                sub.className = `subtab-pill ${activeExploreSubtab === shelf.title ? 'active' : ''}`;
+                sub.dataset.sub = shelf.title;
+                sub.textContent = shelf.title;
+                tabsContainer.appendChild(sub);
+            });
+            bindSubtabs();
+        }
+    });
+  };
+
+  const bindSubtabs = () => {
+      shadow.querySelectorAll('.subtab-pill').forEach(pill => {
+          pill.onclick = (e) => {
+              e.stopPropagation();
+              shadow.querySelectorAll('.subtab-pill').forEach(p => p.classList.remove('active'));
+              pill.classList.add('active');
+              activeExploreSubtab = pill.dataset.sub;
+              updateQueueDisplay();
+          };
+      });
+  };
+
+  const updateQueueDisplay = () => {
+    if (activeExploreSubtab === "Up Next") {
+        renderUpNext();
+    } else if (activeExploreSubtab === "Liked Songs") {
+        renderLikedSongs();
+    } else {
+        renderShelf(activeExploreSubtab);
+    }
+  };
+
+  bindSubtabs();
+
+  shadow.getElementById('btn-search').onclick = (e) => {
+      e.stopPropagation();
+      chrome.runtime.sendMessage({ type: "toggle-search-widget" });
+  };
+  shadow.getElementById('btn-search').onmouseenter = (e) => e.target.style.opacity = '1';
+  shadow.getElementById('btn-search').onmouseleave = (e) => e.target.style.opacity = '0.5';
 
   shadow.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = (e) => {
@@ -752,6 +968,10 @@ const onUp = (ev) => {
         shadow.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         shadow.getElementById(`page-${activePage}`).classList.add('active');
         if (activePage === 'player') requestAnimationFrame(drawWave);
+        if (activePage === 'queue') {
+            updateQueueDisplay();
+            fetchDynamicShelves();
+        }
     };
   });
 }
