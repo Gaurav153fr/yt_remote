@@ -6,8 +6,7 @@
   "permissions": ["tabs", "storage", "scripting"],
   "host_permissions": ["https://music.youtube.com/*"],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

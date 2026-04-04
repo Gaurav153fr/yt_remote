@@ -7,10 +7,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
      
 
 
+        const video = document.querySelector("video");
         const titleElement = document.querySelector(
           "yt-formatted-string.ytmusic-player-bar"
         );
-     
         const imageElement = document.querySelector(
           ".image.style-scope.ytmusic-player-bar"
         );
@@ -19,22 +19,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         );
         const playPauseButton = document.querySelector("#play-pause-button");
   
-        // Make sure the required elements are found
         if (titleElement && imageElement && artistElement && playPauseButton) {
           const title = titleElement.textContent.trim() || "Unknown Title";
           const image = imageElement.getAttribute("src") || "Unknown Image";
           const artist = artistElement.getAttribute("title") || "Unknown Artist";
           const playPauseButtonLabel = playPauseButton.getAttribute("title");
-          const playing = playPauseButtonLabel !== "Play"; // If the label is "Play", it means the song is paused.
+          const playing = playPauseButtonLabel !== "Play";
           const slider = document.querySelector("#progress-bar");
-          // Send the response with all song data
+          
+          const currentTime = video ? video.currentTime : 0;
+          const duration = video ? video.duration : 0;
         
           sendResponse({
             title: title,
             artist: artist,
             image: image,
             playing: playing,
-            slider: slider.getAttribute("aria-valuetext")||0.3,
+            slider: slider.getAttribute("aria-valuetext") || "0:00 of 0:00",
+            currentTimeSeconds: Math.floor(currentTime),
+            durationSeconds: Math.floor(duration),
+            progressPct: duration > 0 ? (currentTime / duration) : 0,
           });
         }
       else {

@@ -786,6 +786,22 @@ const onUp = (ev) => {
     }
   });
 
+  // Sync immediately on load — show current song without waiting for next poll tick
+  chrome.runtime.sendMessage({ type: "widget:sync" }, (response) => {
+    if (response && response.data && !response.data.error) {
+      chrome.runtime.sendMessage({ type: "songUpdate", data: response.data });
+      // Dispatch locally since we're already the receiver tab
+      const syntheticMsg = { type: "songUpdate", data: response.data };
+      const d = syntheticMsg.data;
+      isPlaying = d.playing;
+      shadow.getElementById("title").textContent = d.title ? (d.title.split(' - ')[1] || d.title) : "...";
+      shadow.getElementById("artist").textContent = d.artist ? d.artist.split(' • ')[0] : "...";
+      shadow.getElementById("play").textContent = isPlaying ? "⏸" : "▶";
+      shadow.getElementById("barBox").classList.toggle("playing", isPlaying);
+      if (d.image) updateTheme(d.image);
+    }
+  });
+
   setInterval(() => {
     if (isPlaying && parsedLyrics.length > 0) {
       updateLyricDisplay();

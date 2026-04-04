@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+html,body{
+  border: none;
+}
+@theme {
+  --font-sans: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@layer utilities {
+  .tauri-drag-region {
+    -webkit-app-region: drag;
+  }
+  
+  .tauri-no-drag {
+    -webkit-app-region: no-drag;
+  }
+  
+  /* Smooth color morphing transition that Tailwind raw classes don't intrinsically support on the background images/overlays over long durations */
+  .color-transition {
+    transition: background 0.8s ease, color 0.8s ease;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+body {
+  margin: 0; padding: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}

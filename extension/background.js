@@ -1,5 +1,5 @@
 // background.js
-import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client@4.7.1/+esm";
+importScripts('./socket.io.min.js');
 
 // --- Track YouTube Music tab ---
 let ytMusicTabId = null;
@@ -14,6 +14,7 @@ async function ensureYtMusicTab() {
   
   return ytMusicTabId;
 }
+
 async function sendToYtMusic(message) {
   const tabId = await ensureYtMusicTab();
   if (!tabId) {
@@ -62,7 +63,6 @@ async function broadcastToAllTabs(payload) {
   const tabs = await chrome.tabs.query({});
   for (const t of tabs) {
     try {
-    
       chrome.tabs.sendMessage(t.id, payload);
     } catch {}
   }
@@ -78,11 +78,14 @@ function startPolling() {
         lastSong = res;
     
         broadcastToAllTabs({ type: "songUpdate", data: res });
-        console.log("Broadcasting song update:", res);  
         
         if (roomCode) {
-        
           socket.emit("song", { roomCode, text:res });
+        }
+
+        // --- LOCAL WEBSOCKET CAST ---
+        if (localWs && localWs.readyState === WebSocket.OPEN) {
+          localWs.send(JSON.stringify({ type: "songUpdate", data: res }));
         }
       }
     } catch (err) {
@@ -104,39 +107,29 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           lastSong = res;
         
           broadcastToAllTabs({ type: "songUpdate", data: res, });
-          // if (roomCode) socket.emit("song", { roomCode, text:{...res} });
-        }else{
-          console.log("error",res);sendResponse({ ok: false, error: String(res) });
+        } else {
+          console.log("error",res); sendResponse({ ok: false, error: String(res) });
         }
         sendResponse({ ok: true });
       }
-if (msg.type === "widget:lyrics") {
-  console.log("recieved lyrics request");
-  
-  const music = await sendToYtMusic({ action: "getCurrentlyPlaying" });
-  const lyrics = await fetchSyncedLyrics(music.title, music.artist.split("•")[0]);
-console.log("lyrics",lyrics);
 
-  broadcastToAllTabs({ type: "lyrics", data: lyrics,isLyricsOpen:msg.data });
-  sendResponse({ ok: true, data: lyrics });
+      if (msg.type === "widget:lyrics") {
+        const music = await sendToYtMusic({ action: "getCurrentlyPlaying" });
+        const lyrics = await fetchSyncedLyrics(music.title, music.artist.split("•")[0]);
+        broadcastToAllTabs({ type: "lyrics", data: lyrics, isLyricsOpen: msg.data });
+        sendResponse({ ok: true, data: lyrics });
       }
+
       if (msg.type === "widget:position") {
-        console.log("option:", msg.data);
-        
         broadcastToAllTabs({ type: "position", data: msg.data });
         sendResponse({ ok: true });
       }
-      if(msg.type ==="quickPicks"){
 
-                const picks = await sendToYtMusic({ action: "quickPicks" });
-        
-         console.log("picks",picks);
-        
-               
-        
-                sendResponse({ ok: true, data: picks.quickSongs });
-        
-              }
+      if(msg.type ==="quickPicks"){
+        const picks = await sendToYtMusic({ action: "quickPicks" });
+        sendResponse({ ok: true, data: picks.quickSongs });
+      }
+
       if (msg.type === "playQuick") {
         chrome.scripting.executeScript({
           target: { tabId: sender.tab.id },
@@ -144,66 +137,44 @@ console.log("lyrics",lyrics);
           func: (href) => {
             return new Promise((resolve, reject) => {
               const selector = `a[href='${href}']`;
-              console.log("Looking for selector:", selector);
-              
               const observer = new MutationObserver((mutations, obs) => {
                 const song = document.querySelector(selector);
                 if (song) {
-                  console.log("Found and clicking song:", song);
                   song.click();
-                  obs.disconnect(); // Stop observing once the element is found and clicked
-                  resolve({ status: "success", message: "Song clicked successfully." });
+                  obs.disconnect(); 
+                  resolve({ status: "success" });
                 }
               });
-      
-              // Start observing the body for changes
               observer.observe(document.body, { childList: true, subtree: true });
-      
-              // Check if the element already exists on initial run
               const song = document.querySelector(selector);
               if (song) {
-                console.log("Song found on initial check, clicking:", song);
                 song.click();
                 observer.disconnect();
-                resolve({ status: "success", message: "Song clicked on initial check." });
+                resolve({ status: "success" });
               }
-              
-              // Timeout to prevent endless waiting
               setTimeout(() => {
                 observer.disconnect();
-                reject({ status: "failed", error: "Song element not found within timeout." });
-              }, 5000); // 5-second timeout
+                reject({ status: "failed" });
+              }, 5000); 
             });
           },
           args: [msg.data]
-        }).then(results => {
-          sendResponse(
-            {ok: true, ...results[0].result }
-          );
-        }).catch(err => {
-          console.error("Script execution error:", err);
-          sendResponse({ok: false, status: "failed", error: String(err) });
-        });
-      
-        return true; // Keeps the sendResponse channel open
+        }).then(results => sendResponse({ok: true, ...results[0].result }))
+          .catch(err => sendResponse({ok: false, status: "failed", error: String(err) }));
+        return true; 
       }
-if (msg.type === "widget:sync") {
+
+      if (msg.type === "widget:sync") {
         sendResponse({ ok: true, data: lastSong });
       }
       if (msg.type === "setRoomId") {
         roomCode = msg.roomId;
-        console.log("Room ID set:", roomCode);
         sendResponse({ status: "ok" });
       }
-
       if (msg.type === "getRoomId") {
         sendResponse({ roomId: roomCode });
       }
-
-
       if (msg.type === "saveSettings") {
-        // Here you would save the settings, e.g., to chrome.storage
-        console.log("Saving settings:", msg.data);
         await chrome.storage.sync.set({ settings: msg.data });
         sendResponse({ status: "ok" });
       }
@@ -223,12 +194,10 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (ytMusicTabId === tabId) ytMusicTabId = null;
 });
-// 1. Add the port your server is listening on
-const SERVER_ADDRESS = "https://yt-remote.onrender.com"; // Change this to your server's address
 
-console.log("Connecting to server:", SERVER_ADDRESS);
+// 1. Remote Server
+const SERVER_ADDRESS = "https://yt-remote.onrender.com"; 
 
-// 2. Use the address variable directly
 const socket = io(SERVER_ADDRESS, {
   transports: ["websocket"],
   autoConnect: true,
@@ -240,14 +209,13 @@ socket.on("connect", () => {
   socket.emit("createRoom");
 });
 
-// 3. Add an error listener to see exactly what's wrong
 socket.on("connect_error", (err) => {
   console.error("Connection failed:", err.message);
 });
+
 socket.on("roomCreated", (data) => {
   console.log("Room created:", data);
   roomCode = data.roomCode;
-  startPolling(); // ✅ start polling only after room exists
 });
 
 // --- Remote controls ---
@@ -266,21 +234,114 @@ socket.on("disconnect", () => {
   console.warn("Disconnected from server");
   clearInterval(pollInterval);
 });
+
 async function fetchSyncedLyrics(title, artist) {
-  console.log("Fetching synced lyrics for:", title, artist);
-  
   const query = { track_name: title, artist_name: artist };
   try {
     const response = await fetch(`https://lrclib.net/api/get?${new URLSearchParams(query)}`);
     const data = await response.json();
-   
-    if (data.id) {
-      return data.syncedLyrics;
-    } else {
-      throw new Error("No synced lyrics found");
-    }
+    if (data.id) return data.syncedLyrics;
+    else throw new Error("No synced lyrics found");
   } catch (error) {
-    console.error("Error fetching lyrics:", error);
     return null;
   }
 }
+
+// ----------------------------------------------------
+// LOCAL WEBSOCKET CLIENT (For Tauri Standalone Widget)
+// ----------------------------------------------------
+let localWs = null;
+let localWsReconnectTimer = null;
+
+function connectLocalWs() {
+  if (localWs && localWs.readyState !== WebSocket.CLOSED) return;
+
+  localWs = new WebSocket("ws://127.0.0.1:1422/ws");
+
+  localWs.onopen = () => {
+    console.log("Connected to local Tauri WebSocket Server");
+    // Broadcast initial state immediately
+    if (lastSong) {
+      localWs.send(JSON.stringify({ type: "songUpdate", data: lastSong }));
+    }
+  };
+
+  localWs.onmessage = async (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (!msg || !msg.type) return;
+
+      // Remote player controls
+      if (msg.type === "play_pause") sendToYtMusic({ action: "play_pause" });
+      else if (msg.type === "nextSong") sendToYtMusic({ action: "nextSong" });
+      else if (msg.type === "prevSong") sendToYtMusic({ action: "prevSong" });
+      else if (msg.type === "slider") sendToYtMusic({ action: "slider", data: msg.data });
+      else if (msg.type === "widget:sync") {
+        if (lastSong) {
+          localWs.send(JSON.stringify({ type: "songUpdate", data: lastSong }));
+        }
+      }
+      
+      // Feature request mappings (Proxy to content.js)
+      else if (msg.type === "getQueue") {
+        const res = await sendToYtMusic({ action: "updateQueue" });
+        localWs.send(JSON.stringify({ type: "getQueueResponse", data: res }));
+      }
+      else if (msg.type === "playQueue") {
+        await sendToYtMusic({ action: "playQueue", data: msg.data });
+        localWs.send(JSON.stringify({ type: "playQueueResponse", data: { ok: true } }));
+      }
+      else if (msg.type === "liveSearch") {
+        const res = await sendToYtMusic({ action: "liveSearch", query: msg.query });
+        localWs.send(JSON.stringify({ type: "liveSearchResponse", data: res || [] }));
+      }
+      else if (msg.type === "playSearchResult") {
+        const tabId = await ensureYtMusicTab();
+        if (tabId) {
+          await sendToYtMusic({ action: "pauseOnly" });
+          setTimeout(() => chrome.tabs.update(tabId, { url: `https://music.youtube.com/watch?v=${msg.videoId}` }), 150);
+        }
+        localWs.send(JSON.stringify({ type: "playSearchResultResponse", data: { ok: true } }));
+      }
+      else if (msg.type === "getLikedSongs") {
+        const res = await sendToYtMusic({ action: "getLikedSongs" });
+        localWs.send(JSON.stringify({ type: "getLikedSongsResponse", data: res || [] }));
+      }
+      else if (msg.type === "playLikedSong") {
+        const tabId = await ensureYtMusicTab();
+        if (tabId) {
+          await sendToYtMusic({ action: "pauseOnly" });
+          setTimeout(() => chrome.tabs.update(tabId, { url: `https://music.youtube.com/watch?v=${msg.videoId}&list=LM` }), 150);
+        }
+        localWs.send(JSON.stringify({ type: "playLikedSongResponse", data: { ok: true } }));
+      }
+      else if (msg.type === "getHomeShelves") {
+        const res = await sendToYtMusic({ action: "getHomeShelves" });
+        localWs.send(JSON.stringify({ type: "getHomeShelvesResponse", data: res || [] }));
+      }
+      else if (msg.type === "playShelfItem") {
+        await sendToYtMusic({ action: "playShelfItem", data: msg.data });
+        localWs.send(JSON.stringify({ type: "playShelfItemResponse", data: { ok: true } }));
+      }
+    } catch (e) {
+      console.error("Local WS parse error", e);
+    }
+  };
+
+  localWs.onclose = () => {
+    localWs = null;
+    clearTimeout(localWsReconnectTimer);
+    localWsReconnectTimer = setTimeout(connectLocalWs, 2000);
+  };
+
+  localWs.onerror = () => {
+    if (localWs) localWs.close();
+  };
+}
+
+// Start attempting local connection
+connectLocalWs();
+
+// Ensure polling runs independently so the local widget always gets data instantly!
+startPolling();
+
